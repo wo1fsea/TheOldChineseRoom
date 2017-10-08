@@ -1,0 +1,9 @@
+pyobjc-core
+pyobjc
+pyautogui
+pillow
+pyqt5
+msgpack-python
+redis
+
+brew install redis

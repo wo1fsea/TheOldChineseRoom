@@ -1,0 +1,17 @@
+{
+  "redis":
+  {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0
+  },
+  "frame_capture":
+  {
+    "frame_cache_key": "frame",
+    "frame_cache_length": 8,
+    "fps": 12
+  },
+  "": {},
+  "input_queue_length": 128,
+  "output_queue_length": 128
+}
