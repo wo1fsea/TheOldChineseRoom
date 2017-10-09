@@ -32,7 +32,7 @@ class FrameCapture(object):
     def capture_frame(self):
         capture_time = time.time()
         sct_img = self._mss.grab(self._monitor)
-        self._queue.push(((sct_img.size.width, sct_img.size.height), sct_img.rgb))
+        self._queue.push(((sct_img.size.width, sct_img.size.height), sct_img.rgb).__repr__())
         interval = capture_time - self._last_capture_time
         self._last_capture_time = capture_time
 

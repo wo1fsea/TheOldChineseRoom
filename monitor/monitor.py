@@ -46,7 +46,7 @@ class App(QWidget):
     def timeOut(self):
         data = self._queue.pop()
         if data:
-            size, bytes = data
+            size, bytes = eval(data)
             frame = Image.frombytes('RGB', size, bytes)
             pixmap = frame.toqpixmap()
             self.label.setPixmap(pixmap)

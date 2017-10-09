@@ -13,10 +13,12 @@ import sys
 
 from frame_capture import frame_capture
 from monitor import monitor
+from redis_docker import redis_docker
 
 modules = {
     "frame_capture": frame_capture.start,
     "monitor": monitor.start,
+    "redis_docker": redis_docker.start,
 }
 
 
