@@ -9,23 +9,26 @@ Description:
     rpc_test2.py
 ----------------------------------------------------------------------------"""
 
-from core.communication.rpc import RPCManager
+from core.communication.rpc import remote_method, RPCManager
 
 
 def main():
+    @remote_method
     def print_test0():
         print("print_text0")
+        return "print0"
 
+    @remote_method
     def print_test1(p1):
         print("print_text1", p1)
+        return "print1"
 
+    @remote_method
     def print_test2(p1, p2):
         print("print_text2", p1, p2)
+        raise Exception("DDD")
 
     rpcm = RPCManager()
-    rpcm.register_method("print0", print_test0)
-    rpcm.register_method("print1", print_test1)
-    rpcm.register_method("print2", print_test2)
     rpcm.handle_loop()
 
 

@@ -23,7 +23,7 @@ DEFAULT_RPC_DATA = {
     "method_name": "",
     "params": [],
     "return_value": None,
-    "error": None,
+    "exception": None,
 }
 
 MAX_HANDLE_INTERVAL = 0.1
@@ -42,10 +42,19 @@ class RPCManager(Singleton):
         # ToDo: check method name in db
 
         rpc_data = dict(DEFAULT_RPC_DATA)
-        rpc_data["rpc_id"] = RPC_ID_PREFIX + uuid.generate_uuid()
+        rpc_id = RPC_ID_PREFIX + uuid.generate_uuid()
+        rpc_data["rpc_id"] = rpc_id
         rpc_data["method_name"] = method_name
         rpc_data["params"] = params
         self._rpc_request_queue.put(rpc_data)
+        rpc_data = Queue(rpc_id).bpop()
+        return_value = rpc_data["return_value"]
+        exception = rpc_data["exception"]
+
+        if exception:
+            raise eval(exception)
+
+        return return_value
 
     def handle_call_request(self):
         rpc_data = self._rpc_request_queue.bget()
@@ -54,7 +63,7 @@ class RPCManager(Singleton):
             method_name = rpc_data["method_name"]
             params = rpc_data["params"]
             return_value = None
-            error = None
+            exception = None
             method = self._remote_methods[method_name]
 
             try:
@@ -66,10 +75,10 @@ class RPCManager(Singleton):
                     return_value = method(params)
 
             except Exception as ex:
-                error = str(ex)
+                exception = ex.__repr__()
 
             rpc_data["return_value"] = return_value
-            rpc_data["error"] = error
+            rpc_data["exception"] = exception
 
             return_queue = Queue(rpc_id, max_len=1)
             return_queue.put(rpc_data)
@@ -79,5 +88,7 @@ class RPCManager(Singleton):
             self.handle_call_request()
 
 
-def remote_method():
-    pass
+def remote_method(method):
+    method_name = method.__code__.co_name
+    rpc_manager = RPCManager()
+    rpc_manager.register_method(method_name, method)
