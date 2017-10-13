@@ -1,10 +1,10 @@
-pyobjc-core
-pyobjc
+mss
 pyautogui
 pillow
 pyqt5
 msgpack-python
 redis
 docker
+pyobjc-core
+pyobjc
 
-brew install redis
