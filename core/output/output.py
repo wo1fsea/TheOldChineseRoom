@@ -38,6 +38,13 @@ class OutputManager(Singleton):
 	def mouse_move_to(self):
 		pass
 
+	def scroll(self):
+		pass
+
 	@property
 	def mouse_position(self):
-		return (0, 0)
+		return pyautogui.position()
+
+	@property
+	def screen_size(self):
+		return pyautogui.size()
