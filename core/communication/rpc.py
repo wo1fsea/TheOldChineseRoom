@@ -45,10 +45,10 @@ class RPCManager(Singleton):
         rpc_data["rpc_id"] = RPC_ID_PREFIX + uuid.generate_uuid()
         rpc_data["method_name"] = method_name
         rpc_data["params"] = params
-        self._rpc_request_queue.push(rpc_data)
+        self._rpc_request_queue.put(rpc_data)
 
     def handle_call_request(self):
-        rpc_data = self._rpc_request_queue.bpop()
+        rpc_data = self._rpc_request_queue.bget()
         if rpc_data:
             rpc_id = rpc_data["rpc_id"]
             method_name = rpc_data["method_name"]
@@ -72,7 +72,7 @@ class RPCManager(Singleton):
             rpc_data["error"] = error
 
             return_queue = Queue(rpc_id, max_len=1)
-            return_queue.push(rpc_data)
+            return_queue.put(rpc_data)
 
     def handle_loop(self):
         while True:

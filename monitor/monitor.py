@@ -44,7 +44,7 @@ class App(QWidget):
         self.show()
 
     def timeOut(self):
-        data = self._queue.pop()
+        data = self._queue.get()
         if data:
             size, bytes = eval(data)
             frame = Image.frombytes('RGB', size, bytes)

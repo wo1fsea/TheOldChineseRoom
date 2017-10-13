@@ -22,20 +22,17 @@ class Queue(object):
         self.max_len = max_len
         self.db_connection = DBConnection().redis
 
-    def push(self, item):
-        # ToDo: not a good name
+    def put(self, item):
         b_item = msgpack.packb(item)
         self.db_connection.lpush(self.key, b_item)
         self.db_connection.ltrim(self.key, 0, self.max_len)
 
-    def pop(self):
-        # ToDo: not a good name
+    def get(self):
         b_item = self.db_connection.rpop(self.key)
         item = msgpack.unpackb(b_item, encoding='utf-8') if b_item else b_item
         return item
 
-    def bpop(self):
-        # ToDo: not a good name
+    def bget(self):
         b_item = self.db_connection.brpop(self.key)[1]
         item = msgpack.unpackb(b_item, encoding='utf-8') if b_item else b_item
         return item
