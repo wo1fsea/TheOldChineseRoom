@@ -21,25 +21,25 @@ class WindowManagerDarwin(WindowManager):
         return name
 
     def move_window(self, window_id, x, y):
-        applescript.AppleScript(f'''
+        applescript.AppleScript('''
             tell application "System Events" to tell window 1 of process "{window_id}"
                 set position to { {x}, {y} }
             end tell
-        ''').run()
+        '''.format(window_id=window_id, x=x, y=y)).run()
 
     def resize_window(self, window_id, width, height):
-        applescript.AppleScript(f'''
+        applescript.AppleScript('''
             tell application "System Events" to tell window 1 of process "{window_id}"
                 set size to { {width}, {height} }
             end tell
-        ''').run()
+        '''.format(window_id=window_id, width=width, height=height)).run()
 
     def focus_window(self, window_id):
-        applescript.AppleScript(f'''
+        applescript.AppleScript('''
             tell application "System Events" to tell process "{window_id}"
                 set frontmost to true
             end tell
-        ''').run()
+        '''.format(window_id=window_id)).run()
 
     def is_window_focused(self, window_id):
         return self.get_focused_window_name() == window_id
@@ -56,20 +56,20 @@ class WindowManagerDarwin(WindowManager):
     def get_window_geometry(self, window_id):
         geometry = dict()
 
-        window_geometry = applescript.AppleScript(f'''
+        window_geometry = applescript.AppleScript('''
             tell application "System Events" to tell process "{window_id}"
                 return get size of window 1
             end tell
-        ''').run()
+        '''.format(window_id=window_id)).run()
 
         geometry["width"] = int(window_geometry[0])
         geometry["height"] = int(window_geometry[1])
 
-        window_information = applescript.AppleScript(f'''
+        window_information = applescript.AppleScript('''
             tell application "System Events" to tell window 1 of process "{window_id}"
                 return get position
             end tell
-        ''').run()
+        '''.format(window_id=window_id)).run()
 
         geometry["x"] = int(window_information[0])
         geometry["y"] = int(window_information[1])
