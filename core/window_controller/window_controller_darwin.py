@@ -6,14 +6,14 @@ Author:
 Date:
     2017/10/5
 Description:
-    window_manager_darwin.py
+    window_controller_darwin.py
 ----------------------------------------------------------------------------"""
 
-from .window_manager import WindowManager
+from .window_controller import WindowController
 import applescript
 
 
-class WindowManagerDarwin(WindowManager):
+class WindowControllerDarwin(WindowController):
     def __init__(self):
         pass
 

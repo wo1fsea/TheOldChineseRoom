@@ -9,4 +9,4 @@ Description:
     __init__.py
 ----------------------------------------------------------------------------"""
 
-from .window_manager import WindowManager
+from .window_controller import WindowController

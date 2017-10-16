@@ -6,14 +6,14 @@ Author:
 Date:
     2017/10/4
 Description:
-    window_manager_win32.py
+    window_controller_win32.py
 ----------------------------------------------------------------------------"""
 
-from .window_manager import WindowManager
+from .window_controller import WindowController
 import win32gui
 
 
-class WindowManagerWin32(WindowManager):
+class WindowControllerWin32(WindowController):
     def __init__(self):
         pass
 

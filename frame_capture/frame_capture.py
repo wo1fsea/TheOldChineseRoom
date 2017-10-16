@@ -14,7 +14,7 @@ import time
 
 from core.communication.queue import Queue
 from core.config_reader import ConfigReader
-from core.window_manager import WindowManager
+from core.window_controller import WindowController
 
 
 class FrameCapture(object):
@@ -44,7 +44,7 @@ class FrameCapture(object):
 
 
 def start():
-    wm = WindowManager()
+    wm = WindowController()
     wg = wm.get_window_geometry("PokerHD")
     fc = FrameCapture()
     fc.set_geometry(wg["x"], wg["y"], wg["width"], wg["height"])

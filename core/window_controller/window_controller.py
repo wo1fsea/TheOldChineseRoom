@@ -6,13 +6,13 @@ Author:
 Date:
     2017/10/4
 Description:
-    window_manager.py
+    window_controller.py
 ----------------------------------------------------------------------------"""
 
 import sys
 
 
-class WindowManager:
+class WindowController:
     def __init__(self):
         self.adapter = self._load_adapter()()
 
@@ -39,11 +39,11 @@ class WindowManager:
 
     def _load_adapter(self):
         if sys.platform == "darwin":
-            from .window_manager_darwin import WindowManagerDarwin
-            return WindowManagerDarwin
+            from .window_controller_darwin import WindowControllerDarwin
+            return WindowControllerDarwin
         elif sys.platform == "win32":
-            from .window_manager_win32 import WindowManagerWin32
-            return WindowManagerWin32
+            from .window_controller_win32 import WindowControllerWin32
+            return WindowControllerWin32
         if sys.platform in ["linux", "linux2"]:
             raise NotImplementedError()
         else:
