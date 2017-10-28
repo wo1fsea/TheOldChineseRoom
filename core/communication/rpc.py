@@ -15,8 +15,10 @@ from utils.singleton import Singleton
 from utils import uuid
 from .queue import Queue
 
+RPC_MANAGER_KEY = "GLOBAL"
 RPC_ID_PREFIX = "rpc_"
-RPC_REQUEST_QUEUE_KEY = "rpc_request"
+
+
 
 DEFAULT_RPC_DATA = {
     "rpc_id": None,
@@ -26,13 +28,12 @@ DEFAULT_RPC_DATA = {
     "exception": None,
 }
 
-MAX_HANDLE_INTERVAL = 0.1
-
 
 class RPCManager(Singleton):
-    def __init__(self):
+    def __init__(self, key=RPC_MANAGER_KEY):
+        self._key = key
         self._remote_methods = {}
-        self._rpc_request_queue = Queue(RPC_REQUEST_QUEUE_KEY)
+        self._rpc_request_queue = Queue(self._key)
 
     def register_method(self, method_name, method):
         assert method_name not in self._remote_methods, "same method name (%s) already exists." % method_name
@@ -47,7 +48,7 @@ class RPCManager(Singleton):
         rpc_data["method_name"] = method_name
         rpc_data["params"] = params
         self._rpc_request_queue.put(rpc_data)
-        rpc_data = Queue(rpc_id).bpop()
+        rpc_data = Queue(rpc_id).bget()
         return_value = rpc_data["return_value"]
         exception = rpc_data["exception"]
 

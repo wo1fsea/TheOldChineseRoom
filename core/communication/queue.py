@@ -13,7 +13,7 @@ import msgpack
 
 from .db_connection import DBConnection
 
-QUEUE_MAX_LENGTH = 1024
+QUEUE_MAX_LENGTH = -1
 
 
 class Queue(object):
@@ -25,7 +25,8 @@ class Queue(object):
     def put(self, item):
         b_item = msgpack.packb(item)
         self.db_connection.lpush(self.key, b_item)
-        self.db_connection.ltrim(self.key, 0, self.max_len)
+        if self.max_len > 0:
+            self.db_connection.ltrim(self.key, 0, self.max_len)
 
     def get(self):
         b_item = self.db_connection.rpop(self.key)
