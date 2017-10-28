@@ -30,10 +30,13 @@ DEFAULT_RPC_DATA = {
 
 
 class RPCManager(Singleton):
-    def __init__(self, key=RPC_MANAGER_KEY):
+    def __init__(self):
         self._key = key
         self._remote_methods = {}
         self._rpc_request_queue = Queue(self._key)
+
+    def register_service(self, service_name, method_name_list, enable_multi_instance=True):
+        pass
 
     def register_method(self, method_name, method):
         assert method_name not in self._remote_methods, "same method name (%s) already exists." % method_name

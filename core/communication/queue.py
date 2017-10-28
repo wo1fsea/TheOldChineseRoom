@@ -9,33 +9,30 @@ Description:
     queue.py
 ----------------------------------------------------------------------------"""
 
-import msgpack
-
-from .db_connection import DBConnection
+from .redis_object import RedisObject
 
 QUEUE_MAX_LENGTH = -1
 
 
-class Queue(object):
+class Queue(RedisObject):
     def __init__(self, key, max_len=QUEUE_MAX_LENGTH):
-        self.key = key
+        super(Queue, self).__init__(key)
         self.max_len = max_len
-        self.db_connection = DBConnection().redis
 
     def put(self, item):
-        b_item = msgpack.packb(item)
+        b_item = self.packb(item)
         self.db_connection.lpush(self.key, b_item)
         if self.max_len > 0:
             self.db_connection.ltrim(self.key, 0, self.max_len)
 
     def get(self):
         b_item = self.db_connection.rpop(self.key)
-        item = msgpack.unpackb(b_item, encoding='utf-8') if b_item else b_item
+        item = self.unpackb(b_item) if b_item else b_item
         return item
 
     def bget(self):
         b_item = self.db_connection.brpop(self.key)[1]
-        item = msgpack.unpackb(b_item, encoding='utf-8') if b_item else b_item
+        item = self.unpackb(b_item) if b_item else b_item
         return item
 
     def clear(self):

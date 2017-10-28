@@ -35,7 +35,6 @@ class FrameCapture(object):
         self._queue.put(((sct_img.size.width, sct_img.size.height), sct_img.rgb).__repr__())
         interval = capture_time - self._last_capture_time
         self._last_capture_time = capture_time
-
         if self._frame_interval > interval:
             time.sleep(self._frame_interval - interval)
 
@@ -45,7 +44,7 @@ class FrameCapture(object):
 
 def start():
     wm = WindowController()
-    wg = wm.get_window_geometry("PokerHD")
+    wg = wm.get_window_geometry(wm.locate_window(wm.get_focused_window_name()))
     fc = FrameCapture()
     fc.set_geometry(wg["x"], wg["y"], wg["width"], wg["height"])
     while True:
