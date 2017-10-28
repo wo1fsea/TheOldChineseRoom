@@ -11,7 +11,7 @@ Description:
 
 import msgpack
 
-from .db_connection import DBConnection
+from . import db_connection
 
 
 class RedisObject(object):
@@ -20,13 +20,13 @@ class RedisObject(object):
 
     def __init__(self, key):
         self._key = key
-        self.db_connection = DBConnection().redis
+        self.redis = db_connection.get_redis()
 
     def get_type(self):
-        return self.db_connection.type(self._key).decode()
+        return self.redis.type(self._key).decode()
 
     def set_expire(self, milliseconds):
-        self.db_connection.pexpire(self._key, milliseconds)
+        self.redis.pexpire(self._key, milliseconds)
 
     @property
     def key(self):

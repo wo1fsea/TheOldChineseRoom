@@ -22,7 +22,7 @@ class Table(RedisObject):
 
     def __getitem__(self, key):
         b_key = self.packb(key)
-        b_item = self.db_connection.hget(self.key, b_key)
+        b_item = self.redis.hget(self.key, b_key)
         if not b_item:
             raise KeyError(key)
         return self.unpackb(b_item)
@@ -30,14 +30,14 @@ class Table(RedisObject):
     def __setitem__(self, key, value):
         b_key = self.packb(key)
         b_item = self.packb(value)
-        self.db_connection.hset(self.key, b_key, b_item)
+        self.redis.hset(self.key, b_key, b_item)
 
     def __len__(self):
-        return self.db_connection.hlen(self.key)
+        return self.redis.hlen(self.key)
 
     def __delitem__(self, key):
         b_key = self.packb(key)
-        if not self.db_connection.hdel(self.key, b_key):
+        if not self.redis.hdel(self.key, b_key):
             raise KeyError(key)
 
     def __iter__(self):
@@ -45,7 +45,7 @@ class Table(RedisObject):
 
     def __contains__(self, key):
         b_key = self.packb(key)
-        return self.db_connection.hexists(self.key, b_key)
+        return self.redis.hexists(self.key, b_key)
 
     def get(self, key, default=None):
         try:
@@ -54,13 +54,13 @@ class Table(RedisObject):
             return default
 
     def keys(self):
-        return map(self.unpackb, self.db_connection.hkeys(self.key))
+        return map(self.unpackb, self.redis.hkeys(self.key))
 
     def items(self):
-        return map(lambda k, v: (k, self.unpackb(v)), self.db_connection.hgetall().items())
+        return map(lambda k, v: (k, self.unpackb(v)), self.redis.hgetall().items())
 
     def values(self):
-        return map(self.unpackb, self.db_connection.hvals(self.key))
+        return map(self.unpackb, self.redis.hvals(self.key))
 
     def clear(self):
-        self.db_connection.delete(self.key)
+        self.redis.delete(self.key)

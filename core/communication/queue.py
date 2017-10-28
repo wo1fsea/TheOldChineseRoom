@@ -21,19 +21,19 @@ class Queue(RedisObject):
 
     def put(self, item):
         b_item = self.packb(item)
-        self.db_connection.lpush(self.key, b_item)
+        self.redis.lpush(self.key, b_item)
         if self.max_len > 0:
-            self.db_connection.ltrim(self.key, 0, self.max_len)
+            self.redis.ltrim(self.key, 0, self.max_len)
 
     def get(self):
-        b_item = self.db_connection.rpop(self.key)
+        b_item = self.redis.rpop(self.key)
         item = self.unpackb(b_item) if b_item else b_item
         return item
 
     def bget(self):
-        b_item = self.db_connection.brpop(self.key)[1]
+        b_item = self.redis.brpop(self.key)[1]
         item = self.unpackb(b_item) if b_item else b_item
         return item
 
     def clear(self):
-        self.db_connection.delete(self.key)
+        self.redis.delete(self.key)

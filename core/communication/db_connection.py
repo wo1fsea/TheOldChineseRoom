@@ -11,18 +11,11 @@ Description:
 
 import redis
 
-from utils.singleton import Singleton
-
 from ..config_reader import ConfigReader
 
 
-class DBConnection(Singleton):
-    def __init__(self):
-        config_reader = ConfigReader()
-        redis_config = config_reader.get_config("redis")
-        assert redis_config, "redis config not exists."
-        self._redis = redis.StrictRedis(**redis_config)
-
-    @property
-    def redis(self):
-        return self._redis
+def get_redis():
+    config_reader = ConfigReader()
+    redis_config = config_reader.get_config("redis")
+    assert redis_config, "redis config not exists."
+    return redis.StrictRedis(**redis_config)
