@@ -10,6 +10,7 @@ Description:
 ----------------------------------------------------------------------------"""
 
 from .redis_object import RedisObject
+from collections import UserDict
 
 
 class Table(RedisObject):
@@ -57,10 +58,17 @@ class Table(RedisObject):
         return map(self.unpackb, self.redis.hkeys(self.key))
 
     def items(self):
-        return map(lambda k, v: (k, self.unpackb(v)), self.redis.hgetall().items())
+        return map(lambda x: (self.unpackb(x[0]), self.unpackb(x[1])), self.redis.hgetall(self.key).items())
 
     def values(self):
         return map(self.unpackb, self.redis.hvals(self.key))
 
     def clear(self):
         self.redis.delete(self.key)
+
+    def setdefault(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            self[key] = default
+        return default

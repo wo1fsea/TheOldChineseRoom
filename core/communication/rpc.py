@@ -14,11 +14,16 @@ import time
 from utils.singleton import Singleton
 from utils import uuid
 from .queue import Queue
+from .table import Table
 
-RPC_MANAGER_KEY = "GLOBAL"
+SERVICE_TTL = 30 * 1000
+SERVICE_HEARTBEAT_INTERVAL = SERVICE_TTL / 2
+
+RPC_SERVICE_TABLE_KEY = "global_service_table"
+
 RPC_ID_PREFIX = "rpc_"
-
-
+SERVICE_ID_PREFIX = "service_"
+REQUEST_QUEUE_ID_PREFIX = "request_queue_"
 
 DEFAULT_RPC_DATA = {
     "rpc_id": None,
@@ -26,31 +31,86 @@ DEFAULT_RPC_DATA = {
     "params": [],
     "return_value": None,
     "exception": None,
+
+    "request_time": None,
+    "return_time": None,
+}
+
+DEFAULT_SERVICE_DATA = {
+    "service_id": None,
+    "service_name": "",
+    "method_list": [],
+
+    "request_queue_id": "",
+
+    "register_time": None
 }
 
 
 class RPCManager(Singleton):
+    @staticmethod
+    def gen_service_uuid():
+        return SERVICE_ID_PREFIX + uuid.generate_uuid()
+
+    @staticmethod
+    def gen_rpc_uuid():
+        return RPC_ID_PREFIX + uuid.generate_uuid()
+
+    @staticmethod
+    def gen_request_queue_uuid():
+        return REQUEST_QUEUE_ID_PREFIX + uuid.generate_uuid()
+
     def __init__(self):
-        self._key = key
         self._remote_methods = {}
-        self._rpc_request_queue = Queue(self._key)
+        self._service_map = Table(RPC_SERVICE_TABLE_KEY)
 
     def register_service(self, service_name, method_name_list, enable_multi_instance=True):
-        pass
+        service_id = self._service_map.get(service_name, self.gen_service_uuid())
+        service_data = Table(service_id)
+
+        if not service_data.exists():
+            service_data["service_id"] = service_id
+            service_data["request_queue_id"] = self.gen_request_queue_uuid()
+            service_data["service_name"] = service_name
+            service_data["method_list"] = method_name_list
+            service_data["register_time"] = service_data.time()
+
+        assert service_data["method_list"] == method_name_list, "can not register same service with different methods."
+
+        service_data.set_expire(SERVICE_TTL)
+
+    def service_heartbeat(self, service_name):
+        service_id = self._service_map.get(service_name)
+        assert service_id, "service not found."
+
+        service_data = Table(service_id)
+        service_data.set_expire(SERVICE_TTL)
+
+    def get_services(self):
+        return self._service_map.keys()
 
     def register_method(self, method_name, method):
         assert method_name not in self._remote_methods, "same method name (%s) already exists." % method_name
         self._remote_methods[method_name] = method
 
-    def call_method(self, method_name, params):
-        # ToDo: check method name in db
+    def call_method(self, service_name, method_name, params):
+        service_id = self._service_map.get(service_name)
+        assert service_id, "service not found."
+
+        service_data = Table(service_id)
+        assert service_data.exists(), "service expired."
+        request_queue = Queue(service_data["request_queue_id"])
 
         rpc_data = dict(DEFAULT_RPC_DATA)
-        rpc_id = RPC_ID_PREFIX + uuid.generate_uuid()
+        rpc_id = self.gen_rpc_uuid()
         rpc_data["rpc_id"] = rpc_id
         rpc_data["method_name"] = method_name
         rpc_data["params"] = params
-        self._rpc_request_queue.put(rpc_data)
+        rpc_data["request_time"] = request_queue.time()
+
+        request_queue.put(rpc_data)
+
+        # block until return
         rpc_data = Queue(rpc_id).bget()
         return_value = rpc_data["return_value"]
         exception = rpc_data["exception"]
@@ -60,8 +120,8 @@ class RPCManager(Singleton):
 
         return return_value
 
-    def handle_call_request(self):
-        rpc_data = self._rpc_request_queue.bget()
+    def handle_call_request(self, request_queue):
+        rpc_data = request_queue.bget()
         if rpc_data:
             rpc_id = rpc_data["rpc_id"]
             method_name = rpc_data["method_name"]
@@ -87,9 +147,16 @@ class RPCManager(Singleton):
             return_queue = Queue(rpc_id, max_len=1)
             return_queue.put(rpc_data)
 
-    def handle_loop(self):
+    def handle_loop(self, service_name):
+        service_id = self._service_map.get(service_name)
+        assert service_id, "service not found."
+
+        service_data = Table(service_id)
+        assert service_data.exists(), "service expired."
+        request_queue = Queue(service_data["request_queue_id"])
+
         while True:
-            self.handle_call_request()
+            self.handle_call_request(request_queue)
 
 
 def remote_method(method):

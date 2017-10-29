@@ -15,7 +15,6 @@ from . import db_connection
 
 
 class RedisObject(object):
-
     Redis_Type = "none"
 
     def __init__(self, key):
@@ -27,6 +26,14 @@ class RedisObject(object):
 
     def set_expire(self, milliseconds):
         self.redis.pexpire(self._key, milliseconds)
+
+    @property
+    def exists(self):
+        self.redis.exists(self._key)
+
+    @property
+    def time(self):
+        return self.redis.time()
 
     @property
     def key(self):
