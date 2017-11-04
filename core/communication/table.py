@@ -19,7 +19,7 @@ class Table(RedisObject):
     def __init__(self, key):
         super(Table, self).__init__(key)
 
-        assert self.get_type() in (self.Redis_Type, RedisObject.Redis_Type), "Wrong Redis Object Type"
+        # assert self.get_type() in (self.Redis_Type, RedisObject.Redis_Type), "Wrong Redis Object Type"
 
     def __getitem__(self, key):
         b_key = self.packb(key)

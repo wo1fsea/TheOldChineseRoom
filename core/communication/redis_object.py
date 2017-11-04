@@ -10,8 +10,10 @@ Description:
 ----------------------------------------------------------------------------"""
 
 import msgpack
-
+import time
 from . import db_connection
+
+_delta_time = None
 
 
 class RedisObject(object):
@@ -29,11 +31,16 @@ class RedisObject(object):
 
     @property
     def exists(self):
-        self.redis.exists(self._key)
+        return self.redis.exists(self._key)
 
     @property
     def time(self):
-        return self.redis.time()
+        global _delta_time
+        if _delta_time is None:
+            local_time = time.time()
+            redis_time = float("%d.%d" % self.redis.time())
+            _delta_time = redis_time - local_time
+        return _delta_time + time.time()
 
     @property
     def key(self):

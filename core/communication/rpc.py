@@ -9,7 +9,8 @@ Description:
     rpc.py
 ----------------------------------------------------------------------------"""
 
-import time
+import inspect
+import threading
 
 from utils.singleton import Singleton
 from utils import uuid
@@ -65,15 +66,15 @@ class RPCManager(Singleton):
         self._service_map = Table(RPC_SERVICE_TABLE_KEY)
 
     def register_service(self, service_name, method_name_list, enable_multi_instance=True):
-        service_id = self._service_map.get(service_name, self.gen_service_uuid())
+        service_id = self._service_map.setdefault(service_name, self.gen_service_uuid())
         service_data = Table(service_id)
 
-        if not service_data.exists():
+        if not service_data.exists:
             service_data["service_id"] = service_id
             service_data["request_queue_id"] = self.gen_request_queue_uuid()
             service_data["service_name"] = service_name
             service_data["method_list"] = method_name_list
-            service_data["register_time"] = service_data.time()
+            service_data["register_time"] = service_data.time
 
         assert service_data["method_list"] == method_name_list, "can not register same service with different methods."
 
@@ -93,20 +94,34 @@ class RPCManager(Singleton):
         assert method_name not in self._remote_methods, "same method name (%s) already exists." % method_name
         self._remote_methods[method_name] = method
 
-    def call_method(self, service_name, method_name, params):
+    def _get_request_queue(self, service_name):
+        if not hasattr(self, "request_queue_cache"):
+            self.request_queue_cache = {}
+
+        request_queue = self.request_queue_cache.get(service_name)
+        if request_queue:
+            return request_queue
+
         service_id = self._service_map.get(service_name)
         assert service_id, "service not found."
 
         service_data = Table(service_id)
-        assert service_data.exists(), "service expired."
+        # assert service_data.exists, "service expired."
         request_queue = Queue(service_data["request_queue_id"])
+
+        self.request_queue_cache[service_name] = request_queue
+        return request_queue
+
+    def call_method(self, service_name, method_name, params):
+
+        request_queue = self._get_request_queue(service_name)
 
         rpc_data = dict(DEFAULT_RPC_DATA)
         rpc_id = self.gen_rpc_uuid()
         rpc_data["rpc_id"] = rpc_id
         rpc_data["method_name"] = method_name
         rpc_data["params"] = params
-        rpc_data["request_time"] = request_queue.time()
+        rpc_data["request_time"] = request_queue.time
 
         request_queue.put(rpc_data)
 
@@ -152,7 +167,7 @@ class RPCManager(Singleton):
         assert service_id, "service not found."
 
         service_data = Table(service_id)
-        assert service_data.exists(), "service expired."
+        # assert service_data.exists, "service expired."
         request_queue = Queue(service_data["request_queue_id"])
 
         while True:
@@ -160,6 +175,51 @@ class RPCManager(Singleton):
 
 
 def remote_method(method):
+    frame = inspect.currentframe()
+    # class_name = frame.f_back.f_code.co_names
     method_name = method.__code__.co_name
-    rpc_manager = RPCManager()
-    rpc_manager.register_method(method_name, method)
+    rpc_methods = frame.f_back.f_locals.setdefault("rpc_methods", [])
+    rpc_methods.append(method_name)
+
+    return method
+
+
+class RPCService(object):
+    rpc_methods = []
+
+    def __init__(self, enable_multi_instance=True):
+        self._rpc_manager = RPCManager()
+        self._heartbeat_timer = None
+        self._enable_multi_instance = enable_multi_instance
+
+    @property
+    def service_name(self):
+        return self.__class__.__name__
+
+    def start(self):
+        self.register_methods()
+        self.start_heartbeat()
+        self._rpc_manager.handle_loop(self.service_name)
+
+    def register_methods(self):
+        self._rpc_manager.register_service(self.service_name, self.rpc_methods, self._enable_multi_instance)
+        for name in self.rpc_methods:
+            method = getattr(self, name)
+            self._rpc_manager.register_method(name, method)
+
+    def start_heartbeat(self):
+        self._heartbeat()
+
+    def stop_heartbeat(self):
+        if self._heartbeat_timer:
+            self._heartbeat_timer.cancel()
+            self._heartbeat_timer = None
+
+    def _heartbeat(self):
+        if self._heartbeat_timer:
+            self._heartbeat_timer.cancel()
+
+        self._rpc_manager.service_heartbeat(self.service_name)
+
+        self._heartbeat_timer = threading.Timer(SERVICE_HEARTBEAT_INTERVAL / 1000., self._heartbeat)
+        self._heartbeat_timer.start()
