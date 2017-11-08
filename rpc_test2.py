@@ -9,14 +9,15 @@ Description:
     rpc_test2.py
 ----------------------------------------------------------------------------"""
 
-from core.communication.rpc import remote_method, RPCManager
+from core.communication.rpc import remote_method, RPCManager, RPCClient
 import time
 
+
 def main():
-    rpcm = RPCManager()
+    aa = RPCClient("a")
 
     for i in range(1000):
-        rpcm.call_method("a", "dd", "fff")
+        print(aa.dd("fff"))
 
 
 if __name__ == '__main__':

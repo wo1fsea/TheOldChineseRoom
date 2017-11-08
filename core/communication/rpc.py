@@ -90,6 +90,11 @@ class RPCManager(Singleton):
     def get_services(self):
         return self._service_map.keys()
 
+    def get_method_list(self, service_name):
+        service_id = self._service_map.setdefault(service_name, self.gen_service_uuid())
+        service_data = Table(service_id)
+        return service_data.get("method_list")
+
     def register_method(self, method_name, method):
         assert method_name not in self._remote_methods, "same method name (%s) already exists." % method_name
         self._remote_methods[method_name] = method
@@ -223,3 +228,32 @@ class RPCService(object):
 
         self._heartbeat_timer = threading.Timer(SERVICE_HEARTBEAT_INTERVAL / 1000., self._heartbeat)
         self._heartbeat_timer.start()
+
+
+class RPCClientMethod(object):
+    def __init__(self, rpc_manager, service_name, method_name):
+        self._rpc_manager = rpc_manager
+        self._service_name = service_name
+        self._method_name = method_name
+
+    def __call__(self, *args):
+        return self._rpc_manager.call_method(self._service_name, self._method_name, *args)
+
+
+class RPCClient(object):
+    def __init__(self, service_name):
+        super(RPCClient, self).__init__()
+        self._service_name = service_name
+        self._rpc_manager = RPCManager()
+
+        assert service_name in self._rpc_manager.get_services(), "service not found."
+        self._method_list = self._rpc_manager.get_method_list(service_name)
+
+    @property
+    def service_name(self):
+        return self.service_name
+
+    def __getattr__(self, method_name):
+        if method_name in self._method_list:
+            return RPCClientMethod(self._rpc_manager, self._service_name, method_name)
+        raise AttributeError("type object '%s' has no attribute '%s'" % (self.__class__.__name__, method_name))
