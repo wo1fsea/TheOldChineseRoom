@@ -14,6 +14,7 @@ import threading
 
 from utils.singleton import Singleton
 from utils import uuid
+from utils.expire_dict import ExpireDict
 from .queue import Queue
 from .table import Table
 
@@ -64,6 +65,7 @@ class RPCManager(Singleton):
     def __init__(self):
         self._remote_methods = {}
         self._service_map = Table(RPC_SERVICE_TABLE_KEY)
+        self._request_queue_cache = ExpireDict(SERVICE_TTL)
 
     def register_service(self, service_name, method_name_list, enable_multi_instance=True):
         service_id = self._service_map.setdefault(service_name, self.gen_service_uuid())
@@ -100,10 +102,7 @@ class RPCManager(Singleton):
         self._remote_methods[method_name] = method
 
     def _get_request_queue(self, service_name):
-        if not hasattr(self, "request_queue_cache"):
-            self.request_queue_cache = {}
-
-        request_queue = self.request_queue_cache.get(service_name)
+        request_queue = self._request_queue_cache.get(service_name)
         if request_queue:
             return request_queue
 
@@ -114,7 +113,7 @@ class RPCManager(Singleton):
         # assert service_data.exists, "service expired."
         request_queue = Queue(service_data["request_queue_id"])
 
-        self.request_queue_cache[service_name] = request_queue
+        self._request_queue_cache[service_name] = request_queue
         return request_queue
 
     def call_method(self, service_name, method_name, params):
