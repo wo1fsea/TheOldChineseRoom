@@ -10,12 +10,17 @@ Description:
 ----------------------------------------------------------------------------"""
 
 from core.communication.rpc import RPCManager, RPCService, remote_method
-
-
+import time
+i = 0
 def main():
     class a(RPCService):
         @remote_method
         def dd(self, ff):
+            global i
+            # time.sleep(1)
+            i += 1
+            # if i == 1000:
+            #     exit(0)
             print(ff)
             return ff
 

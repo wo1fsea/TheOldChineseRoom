@@ -11,6 +11,7 @@ Description:
 
 import inspect
 import threading
+import asyncio
 
 from utils.singleton import Singleton
 from utils import uuid
@@ -139,6 +140,33 @@ class RPCManager(Singleton):
 
         return return_value
 
+    async def async_call_method(self, service_name, method_name, params):
+
+        request_queue = self._get_request_queue(service_name)
+
+        rpc_data = dict(DEFAULT_RPC_DATA)
+        rpc_id = self.gen_rpc_uuid()
+        rpc_data["rpc_id"] = rpc_id
+        rpc_data["method_name"] = method_name
+        rpc_data["params"] = params
+        rpc_data["request_time"] = request_queue.time
+
+        request_queue.put(rpc_data)
+
+        # block until return
+        rpc_data = None
+        while rpc_data is None:
+            await asyncio.sleep(.1)
+            rpc_data = Queue(rpc_id).get()
+
+        return_value = rpc_data["return_value"]
+        exception = rpc_data["exception"]
+
+        if exception:
+            raise eval(exception)
+
+        return return_value
+
     def handle_call_request(self, request_queue):
         rpc_data = request_queue.bget()
         if rpc_data:
@@ -239,6 +267,16 @@ class RPCClientMethod(object):
         return self._rpc_manager.call_method(self._service_name, self._method_name, *args)
 
 
+class AsyncRPCClientMethod(object):
+    def __init__(self, rpc_manager, service_name, method_name):
+        self._rpc_manager = rpc_manager
+        self._service_name = service_name
+        self._method_name = method_name
+
+    async def __call__(self, *args):
+        return await self._rpc_manager.async_call_method(self._service_name, self._method_name, *args)
+
+
 class RPCClient(object):
     def __init__(self, service_name):
         super(RPCClient, self).__init__()
@@ -255,4 +293,11 @@ class RPCClient(object):
     def __getattr__(self, method_name):
         if method_name in self._method_list:
             return RPCClientMethod(self._rpc_manager, self._service_name, method_name)
+        raise AttributeError("type object '%s' has no attribute '%s'" % (self.__class__.__name__, method_name))
+
+
+class AsyncRPCClient(RPCClient):
+    def __getattr__(self, method_name):
+        if method_name in self._method_list:
+            return AsyncRPCClientMethod(self._rpc_manager, self._service_name, method_name)
         raise AttributeError("type object '%s' has no attribute '%s'" % (self.__class__.__name__, method_name))
