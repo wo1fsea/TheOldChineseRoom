@@ -30,8 +30,12 @@ class Queue(RedisObject):
         item = self.unpackb(b_item) if b_item else b_item
         return item
 
-    def bget(self):
-        b_item = self.redis.brpop(self.key)[1]
+    def bget(self, timeout=0):
+        b_items = self.redis.brpop(self.key, timeout)
+        if not b_items:
+            return None
+
+        b_item = b_items[1]
         item = self.unpackb(b_item) if b_item else b_item
         return item
 

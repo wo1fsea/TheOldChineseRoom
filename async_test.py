@@ -27,6 +27,5 @@ async def main():
     end = time.time()
     print('Complete in {} second(s)'.format(end - start))
 
-exit(0)
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
