@@ -96,7 +96,10 @@ class OCRNaive(object):
         image = image.convert("L")
         image.show()
         image_data = np.asarray(image, dtype=np.uint8)
-        # image_data = 255 - image_data
+
+        if np.sum(image_data) > image_data.size * 255 / 2:
+            image_data = 255 - image_data
+
         horizontal_sum = np.sum(image_data, axis=1)
         hps = self.extract_peek_ranges_from_array(horizontal_sum)
 
