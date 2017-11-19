@@ -37,7 +37,7 @@ class OCRNaive(object):
     def image_to_string(self, image):
         return ""
 
-    def extract_peek_ranges_from_array(self, array_vals, minimun_val=600, minimun_range=2):
+    def extract_peek_ranges_from_array(self, array_vals, minimun_val=100, minimun_range=2):
         start_i = None
         end_i = None
         peek_ranges = []
@@ -58,12 +58,42 @@ class OCRNaive(object):
                 raise ValueError("cannot parse this case...")
         return peek_ranges
 
+    def _binary(self, image):
+        from skimage.filters import threshold_otsu
+        # image = image.filter(ImageFilter.SHARPEN)
+        # image = image.resize(map(lambda x: int(4 * x), image.size))
+        image = image.convert("L")
+        image = np.asarray(image, dtype=np.uint8)
+        thresh = threshold_otsu(image)
+        binary = image > thresh
+
+        fig, axes = plt.subplots(ncols=3, figsize=(8, 2.5))
+        ax = axes.ravel()
+        ax[0] = plt.subplot(1, 3, 1, adjustable='box-forced')
+        ax[1] = plt.subplot(1, 3, 2)
+        ax[2] = plt.subplot(1, 3, 3, sharex=ax[0], sharey=ax[0], adjustable='box-forced')
+
+        ax[0].imshow(image, cmap=plt.cm.gray)
+        ax[0].set_title('Original')
+        ax[0].axis('off')
+
+        ax[1].hist(image.ravel(), bins=256)
+        ax[1].set_title('Histogram')
+        ax[1].axvline(thresh, color='r')
+
+        ax[2].imshow(binary, cmap=plt.cm.gray)
+        ax[2].set_title('Thresholded')
+        ax[2].axis('off')
+
+        plt.show()
+
+        return Image.fromarray(np.uint8(binary*255))
+
     def _split_image(self, image):
-        image = image.filter(ImageFilter.SHARPEN)
-        image = image.resize(map(lambda x: int(4 * x), image.size))
-        image = image.convert("1")
-        image.show()
-        # image = image.filter(ImageFilter.EDGE_ENHANCE)
+        # image = image.filter(ImageFilter.SHARPEN)
+        # image = image.resize(map(lambda x: int(4 * x), image.size))
+        image = self._binary(image)
+        image = image.convert("L")
         image.show()
         image_data = np.asarray(image, dtype=np.uint8)
         # image_data = 255 - image_data
@@ -124,4 +154,5 @@ class OCRNaive(object):
 if __name__ == '__main__':
     ocrn = OCRNaive()
     image = Image.open("ScreenClip.png")
+    # ocrn._binary(image)
     ocrn._split_image(image)
