@@ -12,7 +12,7 @@ Description:
 import sys
 
 
-class WindowController:
+class WindowController(object):
     def __init__(self):
         self.adapter = self._load_adapter()()
 

@@ -107,9 +107,9 @@ PYAUTOGUI_KEYBOARD_MAP = {
 }
 
 
-class OutputController(Singleton):
+class InputController(Singleton):
     def __init__(self):
-        super(OutputController, self).__init__()
+        super(InputController, self).__init__()
 
     def key_down(self, key):
         pyautogui.keyDown(PYAUTOGUI_KEYBOARD_MAP[key])
