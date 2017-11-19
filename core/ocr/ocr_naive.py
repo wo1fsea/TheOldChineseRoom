@@ -11,12 +11,10 @@ Description:
 
 # from .ocr import OCR
 
-import PIL
-from PIL import Image, ImageDraw, ImageFont
-import matplotlib.pyplot as plt
 import numpy as np
-from PIL import ImageFilter
-
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+import matplotlib.pyplot as plt
+from skimage.filters import threshold_otsu
 
 CHAR_SET = "1234567890-=" \
            "!@#$%^&*()_+" \
@@ -27,112 +25,143 @@ CHAR_SET = "1234567890-=" \
            "zxcvbnm,./" \
            "ZXCVBNM<>?"
 
+CHAR_SET_NUM = "+-1234567890.,"
+
 FONT_SIZE = 100
 
 
 class OCRNaive(object):
-    def __init__(self):
-        pass
+    def __init__(self, char_set=CHAR_SET, font="arial.ttf"):
+        self._base_data = {}
+        self._generate_data(char_set, font)
 
     def image_to_string(self, image):
         return ""
 
-    def extract_peek_ranges_from_array(self, array_vals, minimun_val=100, minimun_range=2):
-        start_i = None
-        end_i = None
-        peek_ranges = []
-        for i, val in enumerate(array_vals):
-            if start_i is None:
-                start_i = i
-            elif val > minimun_val and start_i is not None:
-                pass
-            elif val <= minimun_val and start_i is not None:
-                end_i = i
-                if end_i - start_i >= minimun_range:
-                    peek_ranges.append((start_i, end_i))
-                start_i = None
-                end_i = None
-            elif val < minimun_val and start_i is None:
-                start_i = i
+    def _find_peeks(self, data, min_val=100, min_range=2):
+        start = None
+        peeks = []
+        for i, val in enumerate(data):
+            if val > min_val:
+                if start is None:
+                    start = i
             else:
-                raise ValueError("cannot parse this case...")
-        return peek_ranges
+                if start is not None:
+                    if i - start >= min_range:
+                        peeks.append((start, i))
+                    start = None
+
+        return peeks
 
     def _binary(self, image):
-        from skimage.filters import threshold_otsu
         # image = image.filter(ImageFilter.SHARPEN)
         # image = image.resize(map(lambda x: int(4 * x), image.size))
-        image = image.convert("L")
-        image = np.asarray(image, dtype=np.uint8)
-        thresh = threshold_otsu(image)
-        binary = image > thresh
 
-        fig, axes = plt.subplots(ncols=3, figsize=(8, 2.5))
-        ax = axes.ravel()
-        ax[0] = plt.subplot(1, 3, 1, adjustable='box-forced')
-        ax[1] = plt.subplot(1, 3, 2)
-        ax[2] = plt.subplot(1, 3, 3, sharex=ax[0], sharey=ax[0], adjustable='box-forced')
+        threshold = threshold_otsu(image)
+        binary = image > threshold
 
-        ax[0].imshow(image, cmap=plt.cm.gray)
-        ax[0].set_title('Original')
-        ax[0].axis('off')
+        if np.sum(binary) > binary.size / 2:
+            binary = 1 - binary
 
-        ax[1].hist(image.ravel(), bins=256)
-        ax[1].set_title('Histogram')
-        ax[1].axvline(thresh, color='r')
+        # binary = image * binary
 
-        ax[2].imshow(binary, cmap=plt.cm.gray)
-        ax[2].set_title('Thresholded')
-        ax[2].axis('off')
+        # fig, axes = plt.subplots(ncols=3, figsize=(8, 2.5))
+        # ax = axes.ravel()
+        # ax[0] = plt.subplot(1, 3, 1, adjustable='box-forced')
+        # ax[1] = plt.subplot(1, 3, 2)
+        # ax[2] = plt.subplot(1, 3, 3, sharex=ax[0], sharey=ax[0], adjustable='box-forced')
+        #
+        # ax[0].imshow(image, cmap=plt.cm.gray)
+        # ax[0].set_title('Original')
+        # ax[0].axis('off')
+        #
+        # ax[1].hist(image.ravel(), bins=256)
+        # ax[1].set_title('Histogram')
+        # ax[1].axvline(thresh, color='r')
+        #
+        # ax[2].imshow(binary, cmap=plt.cm.gray)
+        # ax[2].set_title('Thresholded')
+        # ax[2].axis('off')
+        #
+        # plt.show()
 
-        plt.show()
+        return binary * 255
 
-        return Image.fromarray(np.uint8(binary*255))
+    def r(self, image):
+        images = self._split_image(image)
+        string = ""
+        for imgs in images:
+            for img in imgs:
+                string += self._match_char(img)
+            string += "\n"
+        return string
 
     def _split_image(self, image):
-        # image = image.filter(ImageFilter.SHARPEN)
+        image = image.filter(ImageFilter.SHARPEN)
         # image = image.resize(map(lambda x: int(4 * x), image.size))
-        image = self._binary(image)
-        image = image.convert("L")
-        image.show()
-        image_data = np.asarray(image, dtype=np.uint8)
 
-        if np.sum(image_data) > image_data.size * 255 / 2:
-            image_data = 255 - image_data
+        image_data = np.asarray(image.convert("L"), dtype=np.uint8)
+        image_data = self._binary(image_data)
 
-        horizontal_sum = np.sum(image_data, axis=1)
-        hps = self.extract_peek_ranges_from_array(horizontal_sum)
+        h_sum = np.sum(image_data, axis=1)
+        hps = self._find_peeks(h_sum)
 
-        image = image.convert("RGB")
-        draw = ImageDraw.Draw(image)
-        for s, e in hps:
-            draw.line(((0, s), (image.size[0], s)), (255, 0, 0), 1)
-            draw.line(((0, e), (image.size[0], e)), (255, 0, 0), 1)
-
-        vertical_peek_ranges2d = []
+        boxes = []
         for peek_range in hps:
             start_y = peek_range[0]
             end_y = peek_range[1]
             line_img = image_data[start_y:end_y, :]
             vertical_sum = np.sum(line_img, axis=0)
-            plt.plot(vertical_sum, range(vertical_sum.shape[0]))
-            plt.gca().invert_yaxis()
-            plt.show()
-            vps = self.extract_peek_ranges_from_array(vertical_sum)
-            vertical_peek_ranges2d.append(vps)
+            # plt.plot(vertical_sum, range(vertical_sum.shape[0]))
+            # plt.gca().invert_yaxis()
+            # plt.show()
+            vps = self._find_peeks(vertical_sum)
+            boxes.append([])
+            for vp in vps:
+                boxes[-1].append((vp[0], start_y, vp[1], end_y))
 
-            for s, e in vps:
-                draw.line(((s, start_y), (s, end_y)), (255, 0, 0), 1)
-                draw.line(((e, start_y), (e, end_y)), (255, 0, 0), 1)
-        image.show()
-        return ""
+        image2 = Image.fromarray(image_data)
+        image2.show()
+        image2 = image2.convert("RGB")
+        draw = ImageDraw.Draw(image2)
+        for bs in boxes:
+            for b in bs:
+                draw.rectangle(b, outline=(255, 0, 0))
+        image2.show()
 
-    def _generate_data(self, char_set=CHAR_SET, font="arial.ttf"):
+        images = []
+        for bs in boxes:
+            images.append([])
+            for b in bs:
+                images[-1].append(image.crop(b))
+
+        return images
+
+    def _match_char(self, image):
+        image = image.convert("L")
+        bbox = image.getbbox()
+        image = image.crop(bbox)
+        image = image.resize((FONT_SIZE, FONT_SIZE))
+        image_data = np.asarray(image, dtype=np.int32)
+        image_data = self._binary(image_data)
+        Image.fromarray(image_data).show()
+        min_c = "0"
+        min_d = np.sum((image_data - self._base_data[min_c]) ** 2)
+        for c, data in self._base_data.items():
+            d = np.sum((image_data - data) ** 2)
+            if d < min_d:
+                print(c, d)
+                min_d = d
+                min_c = c
+        return min_c
+
+    def _generate_data(self, char_set, font):
         data = {}
         for char in char_set:
             image = self._generate_char_data(char, font)
             data[char] = np.asarray(image, dtype=np.uint8)
-        self._debug_print(data["0"])
+
+        self._base_data = data
 
     def _generate_char_data(self, char, font):
         image = Image.new(mode="RGBA", size=(FONT_SIZE, FONT_SIZE))
@@ -155,7 +184,15 @@ class OCRNaive(object):
 
 
 if __name__ == '__main__':
-    ocrn = OCRNaive()
-    image = Image.open("ScreenClip.png")
+    ocrn = OCRNaive(CHAR_SET_NUM)
+    img = Image.open("ScreenClip2.png")
     # ocrn._binary(image)
-    ocrn._split_image(image)
+    # ocrn._generate_data()
+    # string = ocrn.r(img)
+    # print(string)
+
+    imgs = ocrn._split_image(img)
+    c = ocrn._match_char(imgs[0][3])
+    Image.fromarray(ocrn._base_data["3"]).show()
+    Image.fromarray(ocrn._base_data[c]).show()
+    print(c)
