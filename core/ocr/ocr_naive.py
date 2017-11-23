@@ -38,7 +38,7 @@ class OCRNaive(object):
     def image_to_string(self, image):
         return ""
 
-    def _find_peeks(self, data, min_val=100, min_range=2):
+    def _find_peeks(self, data, min_val=0, min_range=1):
         start = None
         peeks = []
         for i, val in enumerate(data):
@@ -139,12 +139,19 @@ class OCRNaive(object):
 
     def _match_char(self, image):
         image = image.convert("L")
+        image_data = np.asarray(image, dtype=np.int32)
+        if np.sum(image_data) > image_data.size * 255 / 2:
+            image_data = 255 - image_data
+
+        image = Image.fromarray(image_data)
         bbox = image.getbbox()
+        bbox = (bbox[0], 0, bbox[2], image.size[1])
+
         image = image.crop(bbox)
         image = image.resize((FONT_SIZE, FONT_SIZE))
+        # image.show()
         image_data = np.asarray(image, dtype=np.int32)
-        image_data = self._binary(image_data)
-        Image.fromarray(image_data).show()
+
         min_c = "0"
         min_d = np.sum((image_data - self._base_data[min_c]) ** 2)
         for c, data in self._base_data.items():
@@ -168,7 +175,9 @@ class OCRNaive(object):
         draw = ImageDraw.Draw(image)
         font = ImageFont.truetype(font, FONT_SIZE)
         draw.text((0, 0), char, font=font)
+        # image.show()
         bbox = image.getbbox()
+        bbox = (bbox[0], 0, bbox[2], 100)
         image = image.crop(bbox)
         image = image.convert("L")
         image = image.resize((FONT_SIZE, FONT_SIZE))
@@ -186,13 +195,11 @@ class OCRNaive(object):
 if __name__ == '__main__':
     ocrn = OCRNaive(CHAR_SET_NUM)
     img = Image.open("ScreenClip2.png")
-    # ocrn._binary(image)
-    # ocrn._generate_data()
-    # string = ocrn.r(img)
-    # print(string)
+    string = ocrn.r(img)
+    print(string)
 
-    imgs = ocrn._split_image(img)
-    c = ocrn._match_char(imgs[0][3])
-    Image.fromarray(ocrn._base_data["3"]).show()
-    Image.fromarray(ocrn._base_data[c]).show()
-    print(c)
+    # imgs = ocrn._split_image(img)
+    # c = ocrn._match_char(imgs[0][2])
+    # Image.fromarray(ocrn._base_data["2"]).show()
+    # Image.fromarray(ocrn._base_data[c]).show()
+    # print(c)
