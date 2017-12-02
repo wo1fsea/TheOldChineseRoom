@@ -129,7 +129,7 @@ class InputController(Singleton):
     def mouse_click(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
         pyautogui.click(button=PYAUTOGUI_MOUSE_MAP[button], x=position[0], y=position[1])
 
-    def mouse_move_to(self, position=(None, None)):
+    def mouse_move_to(self, position):
         pyautogui.moveTo(x=position[0], y=position[1])
 
     def scroll(self, amount, position=(None, None)):
