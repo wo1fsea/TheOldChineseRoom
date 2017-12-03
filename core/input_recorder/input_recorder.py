@@ -11,13 +11,13 @@ Description:
 
 from utils.singleton import Singleton
 
-DEFAULT_BACKEND = "pyautogui"
+DEFAULT_BACKEND = "pyuserinput"
 
 
 class InputRecorder(Singleton):
-    def __init__(self, backend=DEFAULT_BACKEND):
+    def __init__(self, record_mouse_moving=False, backend=DEFAULT_BACKEND):
         super(InputRecorder, self).__init__()
-        self._adapter = self._load_adapter()(backend)
+        self._adapter = self._load_adapter(backend)(record_mouse_moving=record_mouse_moving)
 
     def start_record(self):
         self._adapter.start_record()
@@ -32,4 +32,8 @@ class InputRecorder(Singleton):
         self._adapter.stop_replay()
 
     def _load_adapter(self, backend):
-        pass
+        if backend == "pyuserinput":
+            from .input_recorder_pyuserinput import InputRecorderPyuserinput
+            return InputRecorderPyuserinput
+        else:
+            raise NotImplementedError()

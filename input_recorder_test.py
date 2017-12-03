@@ -1,27 +1,16 @@
-from pykeyboard import PyKeyboardEvent
-from pymouse import PyMouseEvent
-from threading import Thread
+# -*- coding: utf-8 -*-
+"""----------------------------------------------------------------------------
+Author:
+    Huang Quanyong (wo1fSea)
+    quanyongh@foxmail.com
+Date:
+    2017/12/3
+Description:
+    input_recorder_test.py
+----------------------------------------------------------------------------"""
 
-global x, y, z
-x_, y_, z_ = [], [], []
+from core.input_recorder import InputRecorder
 
-
-class MouseListener(PyMouseEvent):
-    def __init__(self):
-        PyMouseEvent.__init__(self)
-
-    def click(self, x, y, button, press):
-        self.output(x, y, button)
-
-    def output(self, x, y, button):
-        x_.append(x)
-        y_.append(y)
-        z_.append(button)
-
-
-if __name__ == '__main__':
-    mouselistener = MouseListener()
-    mt = Thread(target=mouselistener.run)
-    mt.start()
-    while True:
-        print(x_, y_, z_)
+ir = InputRecorder()
+ir.start_record()
+# ir.stop_record()
