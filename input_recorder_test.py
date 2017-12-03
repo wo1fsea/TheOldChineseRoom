@@ -9,7 +9,7 @@ Description:
     input_recorder_test.py
 ----------------------------------------------------------------------------"""
 
-from core.input_recorder import InputRecorder
+from core.input_controller import InputRecorder
 
 ir = InputRecorder()
 ir.start_record()

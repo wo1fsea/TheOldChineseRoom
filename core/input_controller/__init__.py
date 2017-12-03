@@ -10,3 +10,4 @@ Description:
 ----------------------------------------------------------------------------"""
 
 from .input_controller import InputController
+from .input_recorder import InputRecorder

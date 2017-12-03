@@ -6,7 +6,7 @@ Author:
 Date:
     2017/10/13
 Description:
-    xx
+    keys
 History:
     2017/10/13, create file.
 ----------------------------------------------------------------------------"""
@@ -157,7 +157,7 @@ CHARACTER_KEY_MAP = {
     "{": [Keyboard.KEY_LEFT_SHIFT, Keyboard.KEY_LEFT_BRACKET],
     "]": [Keyboard.KEY_RIGHT_BRACKET],
     "}": [Keyboard.KEY_LEFT_SHIFT, Keyboard.KEY_RIGHT_BRACKET],
-    "\n": [Keyboard.KEY_RETURN],
+    "\n": [Keyboard.KEY_ENTER],
     "a": [Keyboard.KEY_A],
     "A": [Keyboard.KEY_LEFT_SHIFT, Keyboard.KEY_A],
     "s": [Keyboard.KEY_S],

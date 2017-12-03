@@ -9,12 +9,17 @@ Description:
     input_recorder_pyuserinput.py
 ----------------------------------------------------------------------------"""
 
-from .input_recorder import InputRecorder
+import time
+from threading import Thread
 
 from pykeyboard import PyKeyboardEvent
 from pymouse import PyMouseEvent
-from threading import Thread
-import time
+
+from core.input_controller.input_recorder import InputRecorder
+from core.input_controller.input_controller_pyuserinput import PYUSERINPUT_KEYBOARD_MAP, PYUSERINPUT_MOUSE_MAP
+
+PYUSERINPUT_KEYBOARD_REVERSE_MAP = {v: k for k, v in PYUSERINPUT_KEYBOARD_MAP.items()}
+PYUSERINPUT_MOUSE_MAP = {v: k for k, v in PYUSERINPUT_MOUSE_MAP.items()}
 
 
 class MouseListener(PyMouseEvent):
@@ -37,14 +42,19 @@ class KeyboardListener(PyKeyboardEvent):
     def __init__(self):
         super(KeyboardListener, self).__init__()
 
+    # fix pykeyboardevent bug on mac
     def key_press(self, key):
-        print("key_press", key)
+        from pykeyboard.mac import key_code_translate_table
+        self.tap(key, key_code_translate_table[key], True)
 
     def key_release(self, key):
-        print("key_release", key)
+        from pykeyboard.mac import key_code_translate_table
+        self.tap(key, key_code_translate_table[key], False)
 
     def tap(self, keycode, character, press):
-        print("tap", keycode, character, press)
+        print(character)
+        print("tap", keycode, PYUSERINPUT_KEYBOARD_REVERSE_MAP.get(character) or PYUSERINPUT_KEYBOARD_REVERSE_MAP.get(keycode) or character, press)
+
 
 class InputRecorderPyuserinput(InputRecorder):
     def __init__(self, record_mouse_moving):
