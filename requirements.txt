@@ -1,10 +1,9 @@
 mss
 pyautogui
+pyuserinput
 pillow
 pyqt5
 msgpack-python
 redis
 docker
-pyobjc-core
-pyobjc
 numpy

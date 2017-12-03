@@ -20,8 +20,8 @@ _keyboard = PyKeyboard()
 
 PYUSERINPUT_MOUSE_MAP = {
     Mouse.BUTTON_LEFT: 1,
-    Mouse.BUTTON_MIDDLE: 2,
-    Mouse.BUTTON_RIGHT: 3,
+    Mouse.BUTTON_MIDDLE: 3,
+    Mouse.BUTTON_RIGHT: 2,
 }
 
 PYUSERINPUT_KEYBOARD_MAP = {
