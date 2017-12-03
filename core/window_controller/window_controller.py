@@ -44,7 +44,7 @@ class WindowController(object):
         elif sys.platform == "win32":
             from .window_controller_win32 import WindowControllerWin32
             return WindowControllerWin32
-        if sys.platform in ["linux", "linux2"]:
+        elif sys.platform in ["linux", "linux2"]:
             raise NotImplementedError()
         else:
             raise NotImplementedError()
