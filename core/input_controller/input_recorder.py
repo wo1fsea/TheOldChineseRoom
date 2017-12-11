@@ -11,7 +11,7 @@ Description:
 
 from utils.singleton import Singleton
 
-DEFAULT_BACKEND = "pyuserinput"
+DEFAULT_BACKEND = "pynput"
 
 
 class InputRecorder(Singleton):
@@ -35,5 +35,8 @@ class InputRecorder(Singleton):
         if backend == "pyuserinput":
             from .input_recorder_pyuserinput import InputRecorderPyuserinput
             return InputRecorderPyuserinput
+        elif backend == "pynput":
+            from .input_recorder_pynput import InputRecorderPynput
+            return InputRecorderPynput
         else:
             raise NotImplementedError()

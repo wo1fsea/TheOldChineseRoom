@@ -13,4 +13,4 @@ from core.input_controller import InputRecorder
 
 ir = InputRecorder()
 ir.start_record()
-# ir.stop_record()
+ir.stop_record()
