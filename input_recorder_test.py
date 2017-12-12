@@ -9,8 +9,12 @@ Description:
     input_recorder_test.py
 ----------------------------------------------------------------------------"""
 
+import time
 from core.input_controller import InputRecorder
+
 
 ir = InputRecorder()
 ir.start_record()
+
+time.sleep(10)
 ir.stop_record()

@@ -20,20 +20,20 @@ class InputController(Singleton):
         super(InputController, self).__init__()
         self._adapter = self._load_adapter()(backend)
 
-    def key_down(self, key):
-        self._adapter.key_down(key)
-
-    def key_up(self, key):
-        self._adapter.key_up(key)
-
     def key_press(self, key):
-        self.key_press(key)
+        self._adapter.key_press(key)
 
-    def mouse_down(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
-        self._adapter.mouse_down(button, position)
+    def key_release(self, key):
+        self._adapter.key_release(key)
 
-    def mouse_up(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
-        self._adapter.mouse_up(button, position)
+    def key_tap(self, key):
+        self.key_tap(key)
+
+    def mouse_press(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
+        self._adapter.mouse_press(button, position)
+
+    def mouse_release(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
+        self._adapter.mouse_release(button, position)
 
     def mouse_click(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
         self._adapter.mouse_click(button, position)
@@ -59,5 +59,8 @@ class InputController(Singleton):
         elif backend == "pyuserinput":
             from .input_controller_pyuserinput import InputControllerPyuserinput
             return InputControllerPyuserinput
+        elif backend == "pynput":
+            from .input_controller_pynput import InputControllerPynput
+            return InputControllerPynput
         else:
             raise NotImplementedError()

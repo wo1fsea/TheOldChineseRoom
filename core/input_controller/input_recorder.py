@@ -9,9 +9,61 @@ Description:
     input_recorder.py
 ----------------------------------------------------------------------------"""
 
+import time
+
 from utils.singleton import Singleton
+from enum import Enum
 
 DEFAULT_BACKEND = "pynput"
+
+
+class InputEvent(Enum):
+    START = "START"
+    STOP = "STOP"
+    KEY_PRESS = "KEY_PRESS"
+    KEY_RELEASE = "KEY_RELEASE"
+    MOUSE_PRESS = "MOUSE_PRESS"
+    MOUSE_RELEASE = "MOUSE_RELEASE"
+    MOUSE_MOVE_TO = "MOUSE_MOVE_TO"
+    MOUSE_SCROLL = "MOUSE_SCROLL"
+
+
+class Logger(object):
+    def __init__(self):
+        self._is_logging = False
+        self._records = []
+        self._data = None
+        self._start_time = None
+
+    def start_log(self):
+        self._is_logging = True
+        self._start_time = time.time()
+        self._data = []
+        self._data.append((0, InputEvent.START, ))
+
+    def stop_log(self):
+        self._data.append((time.time() - self._start_time, InputEvent.STOP, ))
+        self._records.append(self._data)
+        self._data = None
+        self._start_time = None
+
+    def log_key_press(self, key):
+        self._data.append((time.time() - self._start_time, InputEvent.KEY_PRESS, key))
+
+    def log_key_release(self, key):
+        self._data.append((time.time() - self._start_time, InputEvent.KEY_RELEASE, key))
+
+    def log_mouse_press(self, button, position):
+        self._data.append((time.time() - self._start_time, InputEvent.MOUSE_PRESS, button, position))
+
+    def log_mouse_release(self, button, position):
+        self._data.append((time.time() - self._start_time, InputEvent.MOUSE_RELEASE, button, position))
+
+    def log_mouse_move_to(self, position):
+        self._data.append((time.time() - self._start_time, InputEvent.MOUSE_MOVE_TO, position))
+
+    def log_mouse_scroll(self, amount, position):
+        self._data.append((time.time() - self._start_time, InputEvent.MOUSE_RELEASE, amount, position))
 
 
 class InputRecorder(Singleton):

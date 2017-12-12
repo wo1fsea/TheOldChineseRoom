@@ -115,19 +115,19 @@ class InputControllerPyuserinput(InputController):
     def __init__(self):
         pass
 
-    def key_down(self, key):
+    def key_press(self, key):
         _keyboard.press_key(PYUSERINPUT_KEYBOARD_MAP[key])
 
-    def key_up(self, key):
+    def key_release(self, key):
         _keyboard.release_key(PYUSERINPUT_KEYBOARD_MAP[key])
 
-    def key_press(self, key):
+    def key_tap(self, key):
         _keyboard.tap_key(PYUSERINPUT_KEYBOARD_MAP[key])
 
-    def mouse_down(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
+    def mouse_press(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
         _mouse.press(position[0], position[1], PYUSERINPUT_MOUSE_MAP[button])
 
-    def mouse_up(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
+    def mouse_release(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
         _mouse.release(position[0], position[1], PYUSERINPUT_MOUSE_MAP[button])
 
     def mouse_click(self, button=Mouse.BUTTON_LEFT, position=(None, None)):

@@ -112,19 +112,19 @@ class InputControllerPyautogui(InputController):
     def __init__(self):
         pass
 
-    def key_down(self, key):
+    def key_press(self, key):
         pyautogui.keyDown(PYAUTOGUI_KEYBOARD_MAP[key])
 
-    def key_up(self, key):
+    def key_release(self, key):
         pyautogui.keyUp(PYAUTOGUI_KEYBOARD_MAP[key])
 
-    def key_press(self, key):
+    def key_tap(self, key):
         pyautogui.press(PYAUTOGUI_KEYBOARD_MAP[key])
 
-    def mouse_down(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
+    def mouse_press(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
         pyautogui.mouseDown(button=PYAUTOGUI_MOUSE_MAP[button], x=position[0], y=position[1])
 
-    def mouse_up(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
+    def mouse_release(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
         pyautogui.mouseUp(button=PYAUTOGUI_MOUSE_MAP[button], x=position[0], y=position[1])
 
     def mouse_click(self, button=Mouse.BUTTON_LEFT, position=(None, None)):

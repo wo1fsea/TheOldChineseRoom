@@ -18,13 +18,13 @@ _mouse = mouse.Controller()
 from .input_controller import InputController
 from .keys import Keyboard, Mouse
 
-PYNPUT_MOUSE_MAP = {
+MOUSE_MAP = {
     Mouse.BUTTON_LEFT: mouse.Button.left,
     Mouse.BUTTON_MIDDLE: mouse.Button.middle,
     Mouse.BUTTON_RIGHT: mouse.Button.right,
 }
 
-PYNPUT_KEYBOARD_MAP = {
+KEYBOARD_MAP = {
     Keyboard.KEY_ESCAPE: keyboard.Key.esc,
     Keyboard.KEY_F1: keyboard.Key.f1,
     Keyboard.KEY_F2: keyboard.Key.f2,
@@ -108,6 +108,17 @@ PYNPUT_KEYBOARD_MAP = {
     Keyboard.KEY_LEFT: keyboard.Key.left,
     Keyboard.KEY_DOWN: keyboard.Key.down,
     Keyboard.KEY_RIGHT: keyboard.Key.right,
+
+    Keyboard.KEY_INSERT: keyboard.Key.insert,
+    Keyboard.KEY_PRINT_SCREEN: keyboard.Key.print_screen,
+    Keyboard.KEY_SCROLL_LOCK: keyboard.Key.scroll_lock,
+    Keyboard.KEY_PAUSE: keyboard.Key.pause,
+    Keyboard.KEY_HOME: keyboard.Key.home,
+    Keyboard.KEY_END: keyboard.Key.end,
+    Keyboard.KEY_PAGE_UP: keyboard.Key.page_up,
+    Keyboard.KEY_PAGE_DOWN: keyboard.Key.page_down,
+
+    Keyboard.KEY_UNKNOWN: None,
 }
 
 
@@ -115,30 +126,30 @@ class InputControllerPynput(InputController):
     def __init__(self):
         pass
 
-    def key_down(self, key):
-        _keyboard.press(PYNPUT_KEYBOARD_MAP[key])
-
-    def key_up(self, key):
-        _keyboard.release(PYNPUT_KEYBOARD_MAP[key])
-
     def key_press(self, key):
-        _keyboard.press(PYNPUT_KEYBOARD_MAP[key])
-        _keyboard.release(PYNPUT_KEYBOARD_MAP[key])
+        _keyboard.press(KEYBOARD_MAP[key])
 
-    def mouse_down(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
+    def key_release(self, key):
+        _keyboard.release(KEYBOARD_MAP[key])
+
+    def key_tap(self, key):
+        _keyboard.press(KEYBOARD_MAP[key])
+        _keyboard.release(KEYBOARD_MAP[key])
+
+    def mouse_press(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
         if position[0] is not None:
             _mouse.position = position
-        _mouse.press(PYNPUT_MOUSE_MAP[button])
+        _mouse.press(MOUSE_MAP[button])
 
-    def mouse_up(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
+    def mouse_release(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
         if position[0] is not None:
             _mouse.position = position
-        _mouse.release(PYNPUT_MOUSE_MAP[button])
+        _mouse.release(MOUSE_MAP[button])
 
     def mouse_click(self, button=Mouse.BUTTON_LEFT, position=(None, None)):
         if position[0] is not None:
             _mouse.position = position
-        _mouse.click(PYNPUT_MOUSE_MAP[button])
+        _mouse.click(MOUSE_MAP[button])
 
     def mouse_move_to(self, position):
         _mouse.position = position
@@ -154,4 +165,5 @@ class InputControllerPynput(InputController):
 
     @property
     def screen_size(self):
-        return _mouse.screen_size()
+        pass
+        # return _mouse.screen_size()
