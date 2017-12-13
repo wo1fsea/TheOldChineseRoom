@@ -12,13 +12,13 @@ Description:
 from utils.singleton import Singleton
 from .keys import Mouse
 
-DEFAULT_BACKEND = "pyautogui"
+DEFAULT_BACKEND = "pynput"
 
 
 class InputController(Singleton):
     def __init__(self, backend=DEFAULT_BACKEND):
         super(InputController, self).__init__()
-        self._adapter = self._load_adapter()(backend)
+        self._adapter = self._load_adapter(backend)()
 
     def key_press(self, key):
         self._adapter.key_press(key)
@@ -41,8 +41,8 @@ class InputController(Singleton):
     def mouse_move_to(self, position):
         self._adapter.mouse_move_to(position)
 
-    def scroll(self, amount, position=(None, None)):
-        self._adapter.scroll(amount, position)
+    def mouse_scroll(self, amount, position=(None, None)):
+        self._adapter.mouse_scroll(amount, position)
 
     @property
     def mouse_position(self):

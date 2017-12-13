@@ -136,7 +136,7 @@ class InputControllerPyuserinput(InputController):
     def mouse_move_to(self, position):
         _mouse.move(position[0], position[1])
 
-    def scroll(self, amount, position=(None, None)):
+    def mouse_scroll(self, amount, position=(None, None)):
         _mouse.move(position[0], position[1])
         _mouse.scroll(vertical=amount)
 

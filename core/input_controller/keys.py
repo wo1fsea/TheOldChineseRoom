@@ -11,17 +11,18 @@ History:
     2017/10/13, create file.
 ----------------------------------------------------------------------------"""
 
-from enum import Enum
+
+# from enum import Enum
 
 
-class Mouse(Enum):
+class Mouse:
     BUTTON_LEFT = "BUTTON_LEFT",
     BUTTON_MIDDLE = "BUTTON_MIDDLE",
     BUTTON_RIGHT = "BUTTON_RIGHT",
     BUTTON_UNKNOWN = "BUTTON_UNKNOWN",
 
 
-class Keyboard(Enum):
+class Keyboard:
     KEY_ESCAPE = "KEY_ESCAPE"
     KEY_F1 = "KEY_F1"
     KEY_F2 = "KEY_F2"
@@ -116,6 +117,7 @@ class Keyboard(Enum):
     KEY_PAGE_DOWN = "KEY_PAGE_DOWN"
 
     KEY_UNKNOWN = "KEU_UNKNOWN"
+
 
 CHARACTER_KEY_MAP = {
     "`": [Keyboard.KEY_GRAVE],

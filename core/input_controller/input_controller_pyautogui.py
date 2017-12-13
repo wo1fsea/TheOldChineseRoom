@@ -133,8 +133,8 @@ class InputControllerPyautogui(InputController):
     def mouse_move_to(self, position):
         pyautogui.moveTo(x=position[0], y=position[1])
 
-    def scroll(self, amount, position=(None, None)):
-        pyautogui.scroll(amount, x=position[0], y=position[1])
+    def mouse_scroll(self, amount, position=(None, None)):
+        pyautogui.mouse_scroll(amount, x=position[0], y=position[1])
 
     @property
     def mouse_position(self):

@@ -154,7 +154,7 @@ class InputControllerPynput(InputController):
     def mouse_move_to(self, position):
         _mouse.position = position
 
-    def scroll(self, amount, position=(None, None)):
+    def mouse_scroll(self, amount, position=(None, None)):
         if position[0] is not None:
             _mouse.position = position
         _mouse.scroll(0, amount)
