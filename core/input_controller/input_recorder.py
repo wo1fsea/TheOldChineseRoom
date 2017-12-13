@@ -108,7 +108,7 @@ class Logger(object):
 
     def log_mouse_press(self, button, position):
         self._data.append((time.time() - self._start_time, InputEvent.MOUSE_PRESS, button, position))
-
+        
     def log_mouse_release(self, button, position):
         self._data.append((time.time() - self._start_time, InputEvent.MOUSE_RELEASE, button, position))
 
