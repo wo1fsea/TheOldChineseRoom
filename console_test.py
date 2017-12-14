@@ -6,6 +6,9 @@ reversed input is shown on the right. Pressing Ctrl-Q will quit the application.
 """
 from __future__ import unicode_literals
 
+from prompt_toolkit.layout.containers import ConditionalContainer
+from prompt_toolkit.filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, to_cli_filter, Condition
+from prompt_toolkit.layout.screen import Char
 from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.enums import DEFAULT_BUFFER
@@ -17,6 +20,7 @@ from prompt_toolkit.layout.controls import BufferControl, FillControl, TokenList
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.shortcuts import create_eventloop
 from prompt_toolkit.token import Token
+from prompt_toolkit.styles import style_from_dict
 
 # 1. First we create the layout
 #    --------------------------
@@ -41,7 +45,7 @@ from prompt_toolkit.token import Token
 layout = VSplit([
     # One window that holds the BufferControl with the default buffer on the
     # left.
-    Window(content=BufferControl(buffer_name=DEFAULT_BUFFER)),
+    Window(content=BufferControl(buffer_name='TEST')),
 
     # A vertical line in the middle. We explicitely specify the width, to make
     # sure that the layout engine will not try to divide the whole width by
@@ -64,23 +68,41 @@ layout = VSplit([
 
 def get_titlebar_tokens(cli):
     return [
-        (Token.Title, ' Hello world '),
+        (Token.Title, ' CONSOLE '),
         (Token.Title, ' (Press [Ctrl-Q] to quit.)'),
     ]
 
 
+def get_bottom_toolbar_tokens(cli):
+    return [(Token.Toolbar, ' This is a toolbar. ')]
+
+
+test_style = style_from_dict({
+    Token.Toolbar: '#ffffff bg:#ff0000',
+})
+
+toolbars = [ConditionalContainer(
+    Window(TokenListControl(get_bottom_toolbar_tokens,
+                            default_char=Char(' ', Token.Toolbar)),
+           height=D.exact(1)),
+    filter=~IsDone() & RendererHeightIsKnown())]
+
 layout = HSplit([
-    # The titlebar.
-    Window(height=D.exact(1),
-           content=TokenListControl(get_titlebar_tokens, align_center=True)),
+                    # The titlebar.
+                    Window(height=D.exact(1),
+                           content=TokenListControl(get_titlebar_tokens, align_center=True)),
 
-    # Horizontal separator.
-    Window(height=D.exact(1),
-           content=FillControl('-', token=Token.Line)),
+                    # Horizontal separator.
+                    Window(height=D.exact(1),
+                           content=FillControl('-', token=Token.Line)),
 
-    # The 'body', like defined above.
-    layout,
-])
+                    # The 'body', like defined above.
+                    layout,
+                    # Horizontal separator.
+                    Window(height=D.exact(1),
+                           content=FillControl('-', token=Token.Line)),
+                    Window(height=D.exact(1), content=BufferControl(buffer_name=DEFAULT_BUFFER)),
+                ] + toolbars)
 
 # 2. Adding key bindings
 #   --------------------
@@ -111,6 +133,7 @@ registry = load_key_bindings()
 # `eager=True` to all key bindings, but do it when it conflicts with another
 # existing key binding, and you definitely want to override that behaviour.
 
+
 @registry.add_binding(Keys.ControlC, eager=True)
 @registry.add_binding(Keys.ControlQ, eager=True)
 def _(event):
@@ -133,6 +156,7 @@ def _(event):
 buffers = {
     DEFAULT_BUFFER: Buffer(is_multiline=True),
     'RESULT': Buffer(is_multiline=True),
+    'TEST': Buffer(is_multiline=False),
 }
 
 
@@ -147,6 +171,12 @@ def default_buffer_changed(default_buffer):
     buffers['RESULT'].text = buffers[DEFAULT_BUFFER].text[::-1]
 
 
+@registry.add_binding(Keys.Enter, eager=True)
+def _1(event):
+    buffers[DEFAULT_BUFFER].cursor_position = 0
+    buffers[DEFAULT_BUFFER].text = ""
+
+
 buffers[DEFAULT_BUFFER].on_text_changed += default_buffer_changed
 
 # 3. Creating an `Application` instance
@@ -155,6 +185,7 @@ buffers[DEFAULT_BUFFER].on_text_changed += default_buffer_changed
 # This glues everything together.
 
 application = Application(
+    style=test_style,
     layout=layout,
     buffers=buffers,
     key_bindings_registry=registry,
