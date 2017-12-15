@@ -71,6 +71,7 @@ class InputRecorderPynput(InputRecorder):
         self._keyboard_listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
 
         self._mouse_listener.start()
+        time.sleep(0.1)
         self._keyboard_listener.start()
 
     def stop_record(self):

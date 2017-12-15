@@ -18,7 +18,7 @@ from prompt_toolkit.keys import Keys
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window
 from prompt_toolkit.layout.controls import BufferControl, FillControl, TokenListControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
-from prompt_toolkit.shortcuts import create_eventloop
+from prompt_toolkit.shortcuts import create_asyncio_eventloop
 from prompt_toolkit.token import Token
 from prompt_toolkit.styles import style_from_dict
 
@@ -201,7 +201,9 @@ application = Application(
 # 4. Run the application
 #    -------------------
 
-def run():
+import asyncio
+
+async def run():
     # We need to create an eventloop for this application. An eventloop is
     # basically a while-true loop that waits for user input, and when it
     # receives something (like a key press), it will send that to the
@@ -209,7 +211,7 @@ def run():
     # which -- according to the environment (Windows/posix) -- returns
     # something that will work there. If you want to run your application
     # inside an "asyncio" environment, you'd have to pass another eventloop.
-    eventloop = create_eventloop()
+    eventloop = create_asyncio_eventloop()
 
     try:
         # Create a `CommandLineInterface` instance. This is a wrapper around
@@ -217,7 +219,7 @@ def run():
         cli = CommandLineInterface(application=application, eventloop=eventloop)
 
         # Run the interface. (This runs the event loop until Ctrl-Q is pressed.)
-        cli.run()
+        await cli.run_async()
 
     finally:
         # Clean up. An eventloop creates a posix pipe. This is used internally
@@ -227,7 +229,9 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(run())
+    # run()
 
 # Some possible improvements.
 
