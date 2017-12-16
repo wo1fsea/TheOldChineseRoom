@@ -4,23 +4,25 @@ Simple example of a full screen application with a vertical split.
 This will show a window on the left for user input. When the user types, the
 reversed input is shown on the right. Pressing Ctrl-Q will quit the application.
 """
-from __future__ import unicode_literals
-
+from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.layout.containers import ConditionalContainer
 from prompt_toolkit.filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, to_cli_filter, Condition
 from prompt_toolkit.layout.screen import Char
 from prompt_toolkit.application import Application
-from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.key_binding.defaults import load_key_bindings
 from prompt_toolkit.keys import Keys
-from prompt_toolkit.layout.containers import VSplit, HSplit, Window
+from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float
 from prompt_toolkit.layout.controls import BufferControl, FillControl, TokenListControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.shortcuts import create_asyncio_eventloop
 from prompt_toolkit.token import Token
+from prompt_toolkit.contrib.completers import WordCompleter
 from prompt_toolkit.styles import style_from_dict
+from prompt_toolkit.layout.menus import CompletionsMenu, MultiColumnCompletionsMenu
+from prompt_toolkit.filters import Always
 
 # 1. First we create the layout
 #    --------------------------
@@ -81,28 +83,39 @@ test_style = style_from_dict({
     Token.Toolbar: '#ffffff bg:#ff0000',
 })
 
-toolbars = [ConditionalContainer(
+toolbar = ConditionalContainer(
     Window(TokenListControl(get_bottom_toolbar_tokens,
                             default_char=Char(' ', Token.Toolbar)),
            height=D.exact(1)),
-    filter=~IsDone() & RendererHeightIsKnown())]
+    filter=~IsDone() & RendererHeightIsKnown())
 
 layout = HSplit([
-                    # The titlebar.
-                    Window(height=D.exact(1),
-                           content=TokenListControl(get_titlebar_tokens, align_center=True)),
+    # The titlebar.
+    Window(height=D.exact(1),
+           content=TokenListControl(get_titlebar_tokens, align_center=True)),
 
-                    # Horizontal separator.
-                    Window(height=D.exact(1),
-                           content=FillControl('-', token=Token.Line)),
+    # Horizontal separator.
+    Window(height=D.exact(1),
+           content=FillControl('-', token=Token.Line)),
 
-                    # The 'body', like defined above.
-                    layout,
-                    # Horizontal separator.
-                    Window(height=D.exact(1),
-                           content=FillControl('-', token=Token.Line)),
-                    Window(height=D.exact(1), content=BufferControl(buffer_name=DEFAULT_BUFFER)),
-                ] + toolbars)
+    # The 'body', like defined above.
+    layout,
+    # Horizontal separator.
+    Window(height=D.exact(1),
+           content=FillControl('-', token=Token.Line)),
+    FloatContainer(
+        Window(height=D.exact(3), content=BufferControl(buffer_name=DEFAULT_BUFFER)),
+        # Completion menus.
+        [Float(xcursor=True,
+               ycursor=True,
+               content=CompletionsMenu(
+                   max_height=16,
+                   scroll_offset=1,
+                   extra_filter=Always())),
+         ]
+    ),
+    toolbar
+])
 
 # 2. Adding key bindings
 #   --------------------
@@ -152,9 +165,24 @@ def _(event):
 
 # Buffers are the objects that keep track of the user input. In our example, we
 # have two buffer instances, both are multiline.
+# The completer.
+animal_completer = WordCompleter([
+    'alligator', 'ant', 'ape', 'bat', 'bear', 'beaver', 'bee', 'bison',
+    'butterfly', 'cat', 'chicken', 'crocodile', 'dinosaur', 'dog', 'dolphine',
+    'dove', 'duck', 'eagle', 'elephant', 'fish', 'goat', 'gorilla', 'kangaroo',
+    'leopard', 'lion', 'mouse', 'rabbit', 'rat', 'snake', 'spider', 'turkey',
+    'turtle',
+], ignore_case=True)
+
+
+def accept_handler(cl, _):
+    _.reset(None, True)
+
 
 buffers = {
-    DEFAULT_BUFFER: Buffer(is_multiline=True),
+    DEFAULT_BUFFER: Buffer(is_multiline=False, history=InMemoryHistory(),  enable_history_search=True,
+                           completer=animal_completer, complete_while_typing=True,
+                           accept_action=AcceptAction(handler=accept_handler)),
     'RESULT': Buffer(is_multiline=True),
     'TEST': Buffer(is_multiline=False),
 }
@@ -168,13 +196,16 @@ def default_buffer_changed(default_buffer):
     When the buffer on the left (DEFAULT_BUFFER) changes, update the buffer on
     the right. We just reverse the text.
     """
-    buffers['RESULT'].text = buffers[DEFAULT_BUFFER].text[::-1]
+    buffers['RESULT'].text = buffers[DEFAULT_BUFFER].text
 
 
-@registry.add_binding(Keys.Enter, eager=True)
-def _1(event):
-    buffers[DEFAULT_BUFFER].cursor_position = 0
-    buffers[DEFAULT_BUFFER].text = ""
+#
+# @registry.add_binding(Keys.Enter, eager=True)
+# def _1(event):
+#     buffers[DEFAULT_BUFFER].append_to_history()
+#     print(buffers[DEFAULT_BUFFER].history.strings)
+#     buffers[DEFAULT_BUFFER].cursor_position = 0
+#     buffers[DEFAULT_BUFFER].text = ""
 
 
 buffers[DEFAULT_BUFFER].on_text_changed += default_buffer_changed
@@ -195,13 +226,14 @@ application = Application(
 
     # Using an alternate screen buffer means as much as: "run full screen".
     # It switches the terminal to an alternate screen.
-    use_alternate_screen=True)
-
+    use_alternate_screen=True,
+    )
 
 # 4. Run the application
 #    -------------------
 
 import asyncio
+
 
 async def run():
     # We need to create an eventloop for this application. An eventloop is

@@ -7,3 +7,4 @@ msgpack-python
 redis
 docker
 numpy
+prompt_toolkit
