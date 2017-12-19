@@ -1,6 +1,5 @@
 mss
-pyautogui
-pyuserinput
+pynput
 pillow
 pyqt5
 msgpack-python
