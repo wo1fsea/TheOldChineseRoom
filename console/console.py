@@ -10,6 +10,7 @@ Description:
 ----------------------------------------------------------------------------"""
 
 import asyncio
+from threading import Thread
 
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.layout.containers import ConditionalContainer
@@ -24,12 +25,12 @@ from prompt_toolkit.keys import Keys
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float
 from prompt_toolkit.layout.controls import BufferControl, FillControl, TokenListControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
-from prompt_toolkit.shortcuts import create_asyncio_eventloop
+from prompt_toolkit.shortcuts import create_eventloop
 from prompt_toolkit.token import Token
 from prompt_toolkit.contrib.completers import WordCompleter
 from prompt_toolkit.styles import style_from_dict
 from prompt_toolkit.layout.menus import CompletionsMenu
-from prompt_toolkit.filters import Always
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.document import Document
 
 
@@ -40,6 +41,7 @@ class Console(object):
         self._commands = commands
         self._get_left_buffer = get_left_buffer if get_left_buffer else lambda: ""
         self._get_right_buffer = get_right_buffer if get_right_buffer else lambda: ""
+        self._registry_key()
         self._init_word_completer()
         self._init_buffers()
         self._init_layouts()
@@ -51,11 +53,13 @@ class Console(object):
     def _get_title_tokens(self, cli):
         return [
             (Token.Title, ' %s ' % self._title),
-            (Token.Title, ' (Press [Ctrl-Q] to quit.)'),
         ]
 
     def _get_bottom_toolbar_tokens(self, cli):
         return [(Token.Toolbar, " -- %s -- " % self._toolbar_tips if self._toolbar_tips else "")]
+
+    def _show_completions(self, cli):
+        return " " not in self._buffers[DEFAULT_BUFFER].text
 
     def _init_layouts(self):
         self._layout = HSplit([
@@ -79,7 +83,9 @@ class Console(object):
                 Window(height=D.exact(3), content=BufferControl(buffer_name=DEFAULT_BUFFER)),
                 # completion menus
                 [Float(xcursor=True, ycursor=True,
-                       content=CompletionsMenu(max_height=5, scroll_offset=-1, extra_filter=Always())), ]
+                       content=CompletionsMenu(max_height=5,
+                                               scroll_offset=-1,
+                                               extra_filter=Condition(self._show_completions))), ]
             ),
             # bottom toolbar
             ConditionalContainer(
@@ -90,13 +96,13 @@ class Console(object):
 
         return self._layout
 
-    registry = load_key_bindings()
+    def _registry_key(self):
+        self._key_bindings = load_key_bindings()
 
-    @staticmethod
-    @registry.add_binding(Keys.ControlC, eager=True)
-    @registry.add_binding(Keys.ControlQ, eager=True)
-    def _quit_event_handler(event):
-        event.cli.set_return_value(None)
+        @self._key_bindings.add_binding(Keys.ControlC, eager=True)
+        def _quit_event_handler(event):
+            self._stop = True
+            self._cli.set_return_value(None)
 
     def _init_word_completer(self):
         self._word_completer = WordCompleter(self._commands.keys(), ignore_case=True)
@@ -131,14 +137,11 @@ class Console(object):
             style=self._style,
             layout=self._layout,
             buffers=self._buffers,
-            key_bindings_registry=self.registry,
+            key_bindings_registry=self._key_bindings,
             mouse_support=True,
             use_alternate_screen=True,
         )
         return self._application
-
-    def _force_render(self):
-        self._cli.renderer.render(self._cli, self._layout)
 
     def _run_command(self, command, args):
         if command not in self._commands:
@@ -152,21 +155,32 @@ class Console(object):
         except Exception as ex:
             self.set_toolbar_tips(str(ex))
 
-    async def _refresh_buffers(self):
+    def _refresh_buffers(self):
         while True:
             if self._stop:
                 return
-            await asyncio.sleep(0.3)
+
+            time.sleep(0.3)
             self._buffers["LEFT"].set_document(Document(self._get_left_buffer(), -1), True)
             self._buffers["RIGHT"].set_document(Document(self._get_right_buffer(), -1), True)
-            self._force_render()
+            self._cli.invalidate()
 
-    async def run(self):
-        eventloop = create_asyncio_eventloop()
+    def _run_cli(self):
+        self._cli.run()
+
+    def run(self):
+        eventloop = create_eventloop()
 
         try:
             self._cli = CommandLineInterface(application=self._application, eventloop=eventloop)
-            await asyncio.wait((self._refresh_buffers(), self._cli.run_async(),))
+            self._thread_cli = Thread(target=self._run_cli)
+            self._thread_data = Thread(target=self._refresh_buffers)
+
+            self._thread_cli.start()
+            self._thread_data.start()
+
+            self._thread_cli.join()
+            self._thread_data.join()
 
         finally:
             eventloop.close()
@@ -199,8 +213,7 @@ if __name__ == '__main__':
     }
 
     c = Console(title="TEST", commands=commands, get_left_buffer=l, get_right_buffer=l)
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(c.run())
+    c.run()
 
 
 def start():
