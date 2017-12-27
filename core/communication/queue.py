@@ -15,19 +15,23 @@ QUEUE_MAX_LENGTH = -1
 
 
 class Queue(RedisObject):
-    def __init__(self, key, max_len=QUEUE_MAX_LENGTH):
+    def __init__(self, key, max_len=QUEUE_MAX_LENGTH, pack_item=True):
         super(Queue, self).__init__(key)
         self.max_len = max_len
+        self.pack_item = pack_item
 
     def put(self, item):
-        b_item = self.packb(item)
-        self.redis.lpush(self.key, b_item)
+        if self.pack_item:
+            item = self.packb(item)
+
+        self.redis.lpush(self.key, item)
         if self.max_len > 0:
             self.redis.ltrim(self.key, 0, self.max_len)
 
     def get(self):
-        b_item = self.redis.rpop(self.key)
-        item = self.unpackb(b_item) if b_item else b_item
+        item = self.redis.rpop(self.key)
+        if self.pack_item:
+            item = self.unpackb(item) if item else item
         return item
 
     def bget(self, timeout=0):
