@@ -31,7 +31,7 @@ class App(QMainWindow):
         self.init()
 
         config = ConfigReader().get_config("frame_capture")
-        self._queue = Queue(config["frame_cache_key"], config["frame_cache_length"])
+        self._queue = Queue(config["frame_cache_key"], config["frame_cache_length"], pack_item=False)
 
         self._last_time = 0
 
@@ -48,7 +48,8 @@ class App(QMainWindow):
     def timeOut(self):
         data = self._queue.get()
         if data:
-            size, bytes = eval(data)
+            size = (1500, 1200)
+            bytes = data
             frame = Image.frombytes('RGB', size, bytes)
             cur_time = time.time()
             interval = cur_time - self._last_time
@@ -60,6 +61,8 @@ class App(QMainWindow):
             self.label.setPixmap(pixmap)
             self.label.resize(pixmap.width(), pixmap.height())
             self.resize(pixmap.width(), pixmap.height())
+        else:
+            print("A")
 
 
 def start():
