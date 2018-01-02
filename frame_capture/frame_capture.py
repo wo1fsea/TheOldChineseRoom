@@ -11,7 +11,7 @@ Description:
 
 import mss
 import time
-
+import zlib
 from core.communication.queue import Queue
 from core.config_reader import ConfigReader
 from core.window_controller import WindowController
@@ -32,11 +32,11 @@ class FrameCapture(object):
 
     def capture_frame(self):
         # self._t += 1
-        # if self._t == 20:
+        # if self._t > 20:
         #     exit()
         capture_time = time.time()
         sct_img = self._mss.grab(self._monitor)
-        self._queue.put(sct_img.rgb)
+        self._queue.put(zlib.compress(sct_img.rgb, 3))
         interval = capture_time - self._last_capture_time
         self._last_capture_time = capture_time
         if self._frame_interval > interval:
@@ -50,7 +50,6 @@ def start():
     wm = WindowController()
     wg = wm.get_window_geometry(wm.locate_window(wm.get_focused_window_name()))
     fc = FrameCapture()
-    fc.set_geometry(wg["x"], wg["y"], 1500, 1200)
+    fc.set_geometry(0, 0, 2560, 1440)
     while True:
         fc.capture_frame()
-

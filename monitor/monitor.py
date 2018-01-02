@@ -18,7 +18,7 @@ from PyQt5.QtCore import QTimer
 
 from core.communication.queue import Queue
 from core.config_reader import ConfigReader
-
+import zlib
 
 class App(QMainWindow):
     def __init__(self):
@@ -48,9 +48,9 @@ class App(QMainWindow):
     def timeOut(self):
         data = self._queue.get()
         if data:
-            size = (1500, 1200)
+            size = (2560, 1440)
             bytes = data
-            frame = Image.frombytes('RGB', size, bytes)
+            frame = Image.frombytes('RGB', size, zlib.decompress(bytes))
             cur_time = time.time()
             interval = cur_time - self._last_time
             self._last_time = cur_time
@@ -61,8 +61,6 @@ class App(QMainWindow):
             self.label.setPixmap(pixmap)
             self.label.resize(pixmap.width(), pixmap.height())
             self.resize(pixmap.width(), pixmap.height())
-        else:
-            print("A")
 
 
 def start():
