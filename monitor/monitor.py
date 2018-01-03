@@ -11,14 +11,16 @@ Description:
 
 import sys
 import time
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QLabel
 from PyQt5.QtCore import QTimer
 
 from core.communication.queue import Queue
 from core.config_reader import ConfigReader
+from frame_grabber.frame_reader import FrameReader
 import zlib
+
 
 class App(QMainWindow):
     def __init__(self):
@@ -30,9 +32,7 @@ class App(QMainWindow):
         self.height = 480
         self.init()
 
-        config = ConfigReader().get_config("frame_capture")
-        self._queue = Queue(config["frame_cache_key"], config["frame_cache_length"], pack_item=False)
-
+        self._frame_reader = FrameReader()
         self._last_time = 0
 
     def init(self):
@@ -46,17 +46,12 @@ class App(QMainWindow):
         self.show()
 
     def timeOut(self):
-        data = self._queue.get()
-        if data:
-            size = (2560, 1440)
-            bytes = data
-            frame = Image.frombytes('RGB', size, zlib.decompress(bytes))
+        frame = self._frame_reader.read_frame()
+        if frame:
             cur_time = time.time()
             interval = cur_time - self._last_time
             self._last_time = cur_time
             self.setWindowTitle("fps: %f" % (1 / interval))
-            # draw = ImageDraw.Draw(frame)
-            # draw.text((10, 10), "fps: %f" % (1 / interval), fill=(255, 255, 255, 128))
             pixmap = frame.toqpixmap()
             self.label.setPixmap(pixmap)
             self.label.resize(pixmap.width(), pixmap.height())

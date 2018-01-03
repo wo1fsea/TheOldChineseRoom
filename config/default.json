@@ -4,9 +4,10 @@
     "port": 6379,
     "db": 0
   },
-  "frame_capture": {
-    "frame_cache_key": "frame",
-    "frame_cache_length": 8,
+  "frame_grabber": {
+    "frame_size_key": "frame_size",
+    "frame_cache_key": "frame_cache",
+    "frame_cache_length": 12,
     "fps": 12
   },
   "input_queue_length": 128,

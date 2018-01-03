@@ -11,12 +11,12 @@ Description:
 
 import sys
 
-from frame_capture import frame_capture
+from frame_grabber import frame_grabber
 from monitor import monitor
 from redis_docker import redis_docker
 
 modules = {
-    "frame_capture": frame_capture.start,
+    "frame_grabber": frame_grabber.start,
     "monitor": monitor.start,
     "redis_docker": redis_docker.start,
 }
