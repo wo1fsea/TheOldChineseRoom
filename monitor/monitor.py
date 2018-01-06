@@ -11,15 +11,11 @@ Description:
 
 import sys
 import time
-from PIL import Image
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
 from PyQt5.QtCore import QTimer
 
-from core.communication.queue import Queue
-from core.config_reader import ConfigReader
-from frame_grabber.frame_reader import FrameReader
-import zlib
+from core.frame_grabber.frame_reader import FrameReader
 
 
 class App(QMainWindow):
@@ -34,6 +30,7 @@ class App(QMainWindow):
 
         self._frame_reader = FrameReader()
         self._last_time = 0
+        self._intervals = []
 
     def init(self):
         self.setWindowTitle(self.title)
@@ -51,7 +48,11 @@ class App(QMainWindow):
             cur_time = time.time()
             interval = cur_time - self._last_time
             self._last_time = cur_time
-            self.setWindowTitle("fps: %f" % (1 / interval))
+            self._intervals.append(interval)
+            total = sum(self._intervals)
+            self.setWindowTitle("fps: %f" % (len(self._intervals)/total))
+            if total > 1:
+                self._intervals.pop(0)
             pixmap = frame.toqpixmap()
             self.label.setPixmap(pixmap)
             self.label.resize(pixmap.width(), pixmap.height())

@@ -23,14 +23,14 @@ class WindowControllerDarwin(WindowController):
     def move_window(self, window_id, x, y):
         applescript.AppleScript('''
             tell application "System Events" to tell window 1 of process "{window_id}"
-                set position to { {x}, {y} }
+                set position to {{ {x}, {y} }}
             end tell
         '''.format(window_id=window_id, x=x, y=y)).run()
 
     def resize_window(self, window_id, width, height):
         applescript.AppleScript('''
             tell application "System Events" to tell window 1 of process "{window_id}"
-                set size to { {width}, {height} }
+                set size to {{ {width}, {height} }}
             end tell
         '''.format(window_id=window_id, width=width, height=height)).run()
 

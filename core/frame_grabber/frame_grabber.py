@@ -12,10 +12,10 @@ Description:
 import mss
 import time
 import zlib
-from core.communication.queue import Queue
-from core.communication.table import Table
-from core.config_reader import ConfigReader
-from core.window_controller import WindowController
+import struct
+from ..communication.queue import Queue
+from ..communication.table import Table
+from ..config_reader import ConfigReader
 
 
 class FrameGrabber(object):
@@ -24,7 +24,7 @@ class FrameGrabber(object):
 
         config = ConfigReader().get_config("frame_grabber")
         self._mss = mss.mss()
-        self._monitor = self._mss.monitors[0]
+        self._monitor = self._mss.monitors[1]
 
         self._size = Table(config["frame_size_key"])
         self._update_frame_size()
@@ -43,7 +43,7 @@ class FrameGrabber(object):
     def grab_frame(self):
         grab_time = time.time()
         sct_img = self._mss.grab(self._monitor)
-        self._queue.put(zlib.compress(sct_img.rgb, 3))
+        self._queue.put(zlib.compress(struct.pack("II", sct_img.width, sct_img.height) + sct_img.rgb, 3))
         interval = grab_time - self._last_grab_time
         self._last_grab_time = grab_time
         if self._frame_interval > interval:
@@ -55,13 +55,3 @@ class FrameGrabber(object):
         self._update_frame_size()
 
 
-def start():
-    wm = WindowController()
-    fc = FrameGrabber()
-    # win_name = "电影和电视"
-    win_name = wm.get_focused_window_name()
-    win = wm.locate_window(win_name)
-    while True:
-        wg = wm.get_window_geometry(win)
-        fc.set_geometry(wg["x"], wg["y"], wg["width"], wg["height"])
-        fc.grab_frame()

@@ -10,11 +10,12 @@ Description:
 ----------------------------------------------------------------------------"""
 
 import zlib
+import struct
 from PIL import Image
 
-from core.communication.queue import Queue
-from core.communication.table import Table
-from core.config_reader import ConfigReader
+from ..communication.queue import Queue
+from ..communication.table import Table
+from ..config_reader import ConfigReader
 
 
 class FrameReader(object):
@@ -31,10 +32,11 @@ class FrameReader(object):
         self._last_frame_size = 0
 
     def read_frame(self):
-        size = self._size["width"], self._size["height"]
         data = self._queue.get()
         if data:
-            frame = Image.frombytes('RGB', size, zlib.decompress(data))
+            data = zlib.decompress(data)
+            size = struct.unpack("II", data[:8])
+            frame = Image.frombytes('RGB', size, data[8:])
         else:
             frame = None
 
