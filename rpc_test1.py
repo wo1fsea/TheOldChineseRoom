@@ -21,7 +21,7 @@ def main():
             i += 1
             # if i == 1000:
             #     exit(0)
-            raise Exception("d")
+            # raise Exception("d")
             print(ff)
             return ff
 

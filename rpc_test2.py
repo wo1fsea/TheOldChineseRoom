@@ -22,7 +22,7 @@ def main():
 async def main2():
     aa = AsyncRPCClient("a")
     async def pf():
-        r = await aa.dd("fff")
+        r = await aa.dd(ff="fff")
         print(r)
     await asyncio.wait([pf() for i in range(1000)])
 

@@ -34,7 +34,8 @@ REQUEST_QUEUE_ID_PREFIX = "request_queue_"
 DEFAULT_RPC_DATA = {
     "rpc_id": None,
     "method_name": "",
-    "params": [],
+    "args": [],
+    "kwargs": {},
     "return_value": None,
     "exception": None,
 
@@ -97,8 +98,12 @@ class RPCManager(Singleton):
         return self._service_map.keys()
 
     def get_method_list(self, service_name):
-        service_id = self._service_map.setdefault(service_name, self.gen_service_uuid())
+        service_id = self._service_map.get(service_name)
+        assert service_id, "service not found."
+
         service_data = Table(service_id)
+
+        assert service_data.exists, "service invalid."
         return service_data.get("method_list")
 
     def register_method(self, method_name, method):
@@ -120,14 +125,15 @@ class RPCManager(Singleton):
         self._request_queue_cache[service_name] = request_queue
         return request_queue
 
-    def _push_request(self, service_name, method_name, params):
+    def _push_request(self, service_name, method_name, args, kwargs):
         request_queue = self._get_request_queue(service_name)
 
         rpc_data = dict(DEFAULT_RPC_DATA)
         rpc_id = self.gen_rpc_uuid()
         rpc_data["rpc_id"] = rpc_id
         rpc_data["method_name"] = method_name
-        rpc_data["params"] = params
+        rpc_data["args"] = args
+        rpc_data["kwargs"] = kwargs
         rpc_data["request_time"] = request_queue.time
 
         request_queue.put(rpc_data)
@@ -142,16 +148,16 @@ class RPCManager(Singleton):
 
         return return_value
 
-    def call_method(self, service_name, method_name, params):
-        rpc_id = self._push_request(service_name, method_name, params)
+    def call_method(self, service_name, method_name, args, kwargs):
+        rpc_id = self._push_request(service_name, method_name, args, kwargs)
 
         # block until return
         rpc_data = Queue(rpc_id).bget(BGET_TIMEOUT)
 
         return self._pop_result(rpc_data)
 
-    async def async_call_method(self, service_name, method_name, params):
-        rpc_id = self._push_request(service_name, method_name, params)
+    async def async_call_method(self, service_name, method_name, args, kwargs):
+        rpc_id = self._push_request(service_name, method_name, args, kwargs)
 
         # block until return
         rpc_data = None
@@ -170,18 +176,14 @@ class RPCManager(Singleton):
         if rpc_data:
             rpc_id = rpc_data["rpc_id"]
             method_name = rpc_data["method_name"]
-            params = rpc_data["params"]
+            args = rpc_data["args"]
+            kwargs = rpc_data["kwargs"]
             return_value = None
             exception = None
             method = self._remote_methods[method_name]
 
             try:
-                if isinstance(params, dict):
-                    return_value = method(**params)
-                elif isinstance(params, (tuple, list)):
-                    return_value = method(*params)
-                else:
-                    return_value = method(params)
+                return_value = method(*args, **kwargs)
 
             except Exception as ex:
                 exception = ex
@@ -262,8 +264,8 @@ class RPCClientMethod(object):
         self._service_name = service_name
         self._method_name = method_name
 
-    def __call__(self, *args):
-        return self._rpc_manager.call_method(self._service_name, self._method_name, *args)
+    def __call__(self, *args, **kwargs):
+        return self._rpc_manager.call_method(self._service_name, self._method_name, args, kwargs)
 
 
 class AsyncRPCClientMethod(object):
@@ -273,8 +275,8 @@ class AsyncRPCClientMethod(object):
         self._service_name = service_name
         self._method_name = method_name
 
-    async def __call__(self, *args):
-        return await self._rpc_manager.async_call_method(self._service_name, self._method_name, *args)
+    async def __call__(self, *args, **kwargs):
+        return await self._rpc_manager.async_call_method(self._service_name, self._method_name, args, kwargs)
 
 
 class RPCClient(object):
@@ -291,7 +293,7 @@ class RPCClient(object):
         return self.service_name
 
     def __getattr__(self, method_name):
-        if method_name in self._method_list:
+        if self._method_list and method_name in self._method_list:
             return RPCClientMethod(self._rpc_manager, self._service_name, method_name)
         raise AttributeError("type object '%s' has no attribute '%s'" % (self.__class__.__name__, method_name))
 
@@ -310,6 +312,6 @@ class AsyncRPCClient(object):
         return self.service_name
 
     def __getattr__(self, method_name):
-        if method_name in self._method_list:
+        if self._method_list and method_name in self._method_list:
             return AsyncRPCClientMethod(self._rpc_manager, self._service_name, method_name)
         raise AttributeError("type object '%s' has no attribute '%s'" % (self.__class__.__name__, method_name))
