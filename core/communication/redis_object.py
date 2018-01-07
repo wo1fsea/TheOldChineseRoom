@@ -53,7 +53,7 @@ class PicklePacker(Packer):
 DEFAULT_PACKER = PicklePacker
 
 
-class  RedisObject(object):
+class RedisObject(object):
     Redis_Type = "none"
 
     def __init__(self, key, packer=DEFAULT_PACKER):
