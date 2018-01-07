@@ -70,7 +70,6 @@ class RPCManager(Singleton):
         return REQUEST_QUEUE_ID_PREFIX + uuid.generate_uuid()
 
     def __init__(self):
-        self._remote_methods = {}
         self._service_map = Table(RPC_SERVICE_TABLE_KEY)
         self._request_queue_cache = ExpireDict(SERVICE_TTL)
 
@@ -110,10 +109,6 @@ class RPCManager(Singleton):
         assert service_data.exists, "service invalid."
         return service_data.get("method_list")
 
-    def register_method(self, method_name, method):
-        assert method_name not in self._remote_methods, "same method name (%s) already exists." % method_name
-        self._remote_methods[method_name] = method
-
     def _get_request_queue(self, service_name):
         request_queue = self._request_queue_cache.get(service_name)
         if request_queue:
@@ -138,7 +133,7 @@ class RPCManager(Singleton):
         rpc_data["method_name"] = method_name
         rpc_data["args"] = args
         rpc_data["kwargs"] = kwargs
-        rpc_data["request_time"] = request_queue.time
+        rpc_data["request_time"] = self._service_map.time
 
         request_queue.put(rpc_data)
         return rpc_id
@@ -181,14 +176,19 @@ class RPCManager(Singleton):
         result_queue.clear()
         return self._pop_result(rpc_data)
 
-    def handle_call_request(self, rpc_data):
+    def handle_call_request(self, remote_methods, rpc_data):
+        request_time = rpc_data["request_time"]
+
+        if self._service_map.time - request_time > SERVICE_TTL:
+            return
+
         rpc_id = rpc_data["rpc_id"]
         method_name = rpc_data["method_name"]
         args = rpc_data["args"]
         kwargs = rpc_data["kwargs"]
         return_value = None
         exception = None
-        method = self._remote_methods[method_name]
+        method = remote_methods[method_name]
 
         try:
             return_value = method(*args, **kwargs)
@@ -222,6 +222,7 @@ class RPCService(object):
 
     def __init__(self, enable_multi_instance=True):
         self._rpc_manager = RPCManager()
+        self._remote_methods = {}
         self._is_running = False
         self._heartbeat_thread = None
         self._process_thread = None
@@ -246,13 +247,13 @@ class RPCService(object):
         self._rpc_manager.register_service(self.service_name, self.rpc_methods, self._enable_multi_instance)
         for name in self.rpc_methods:
             method = getattr(self, name)
-            self._rpc_manager.register_method(name, method)
+            self._remote_methods[name] = method
 
     def _process(self):
         while self._is_running:
             request_data = self._rpc_manager.get_request_data(self.service_name)
             if request_data:
-                self._rpc_manager.handle_call_request(request_data)
+                self._rpc_manager.handle_call_request(self._remote_methods, request_data)
 
     def start_process(self):
         assert self._process_thread is None, "process thread is already running."

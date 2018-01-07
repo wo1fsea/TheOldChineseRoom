@@ -27,6 +27,7 @@ def main():
 
     aa = a()
     aa.start()
+    time.sleep(10)
     aa.stop()
 
 
