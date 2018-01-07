@@ -10,7 +10,7 @@ Description:
 ----------------------------------------------------------------------------"""
 
 import time
-from . import db_connection
+from .. import db_connection
 
 import msgpack
 import _pickle as pickle

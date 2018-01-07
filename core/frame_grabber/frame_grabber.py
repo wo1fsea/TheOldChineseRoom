@@ -13,9 +13,9 @@ import mss
 import time
 import zlib
 import struct
-from ..communication.queue import Queue
-from ..communication.table import Table
-from ..communication.redis_object import NoPacker
+from ..communication.collections.queue import Queue
+from ..communication.collections.table import Table
+from ..communication.collections.redis_object import NoPacker
 from ..config_reader import ConfigReader
 
 

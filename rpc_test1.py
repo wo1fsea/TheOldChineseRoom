@@ -27,6 +27,7 @@ def main():
 
     aa = a()
     aa.start()
+    aa.stop()
 
 
 if __name__ == '__main__':

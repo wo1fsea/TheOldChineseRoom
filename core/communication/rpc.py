@@ -9,6 +9,7 @@ Description:
     rpc.py
 ----------------------------------------------------------------------------"""
 
+import time
 import asyncio
 import inspect
 import threading
@@ -16,13 +17,14 @@ import threading
 from utils import uuid
 from utils.expire_dict import ExpireDict
 from utils.singleton import Singleton
-from .queue import Queue
-from .table import Table
+
+from .collections.queue import Queue
+from .collections.table import Table
 
 SERVICE_TTL = 30 * 1000  # milliseconds
-SERVICE_HEARTBEAT_INTERVAL = SERVICE_TTL / 2  # milliseconds
+SERVICE_HEARTBEAT_INTERVAL = SERVICE_TTL // 2  # milliseconds
 
-BGET_TIMEOUT = int(SERVICE_TTL / 1000)  # seconds
+BGET_TIMEOUT = SERVICE_TTL // 1000  # seconds
 ASYNC_GET_POLL_INTERVAL = 0.1  # seconds
 
 RPC_SERVICE_TABLE_KEY = "global_service_table"
@@ -82,6 +84,8 @@ class RPCManager(Singleton):
             service_data["service_name"] = service_name
             service_data["method_list"] = method_name_list
             service_data["register_time"] = service_data.time
+        else:
+            assert enable_multi_instance, "service instance already exist."
 
         assert service_data["method_list"] == method_name_list, "can not register same service with different methods."
 
@@ -119,7 +123,7 @@ class RPCManager(Singleton):
         assert service_id, "service not found."
 
         service_data = Table(service_id)
-        # assert service_data.exists, "service expired."
+        assert service_data.exists, "service expired."
         request_queue = Queue(service_data["request_queue_id"])
 
         self._request_queue_cache[service_name] = request_queue
@@ -140,6 +144,9 @@ class RPCManager(Singleton):
         return rpc_id
 
     def _pop_result(self, rpc_data):
+        if not rpc_data:
+            raise Exception("service timeout")
+
         return_value = rpc_data["return_value"]
         exception = rpc_data["exception"]
 
@@ -152,7 +159,9 @@ class RPCManager(Singleton):
         rpc_id = self._push_request(service_name, method_name, args, kwargs)
 
         # block until return
-        rpc_data = Queue(rpc_id).bget(BGET_TIMEOUT)
+        result_queue = Queue(rpc_id)
+        rpc_data = result_queue.bget(BGET_TIMEOUT)
+        result_queue.clear()
 
         return self._pop_result(rpc_data)
 
@@ -161,49 +170,41 @@ class RPCManager(Singleton):
 
         # block until return
         rpc_data = None
-        timeout = 0
+        result_queue = Queue(rpc_id)
+        request_time = time.time()
         while rpc_data is None:
-            if timeout > BGET_TIMEOUT:
+            if time.time() - request_time > BGET_TIMEOUT:
                 break
             await asyncio.sleep(ASYNC_GET_POLL_INTERVAL)
-            timeout += ASYNC_GET_POLL_INTERVAL
-            rpc_data = Queue(rpc_id).get()
+            rpc_data = result_queue.get()
 
+        result_queue.clear()
         return self._pop_result(rpc_data)
 
-    def handle_call_request(self, request_queue):
-        rpc_data = request_queue.bget()
-        if rpc_data:
-            rpc_id = rpc_data["rpc_id"]
-            method_name = rpc_data["method_name"]
-            args = rpc_data["args"]
-            kwargs = rpc_data["kwargs"]
-            return_value = None
-            exception = None
-            method = self._remote_methods[method_name]
+    def handle_call_request(self, rpc_data):
+        rpc_id = rpc_data["rpc_id"]
+        method_name = rpc_data["method_name"]
+        args = rpc_data["args"]
+        kwargs = rpc_data["kwargs"]
+        return_value = None
+        exception = None
+        method = self._remote_methods[method_name]
 
-            try:
-                return_value = method(*args, **kwargs)
+        try:
+            return_value = method(*args, **kwargs)
 
-            except Exception as ex:
-                exception = ex
+        except Exception as ex:
+            exception = ex
 
-            rpc_data["return_value"] = return_value
-            rpc_data["exception"] = exception
+        rpc_data["return_value"] = return_value
+        rpc_data["exception"] = exception
 
-            return_queue = Queue(rpc_id, max_len=1)
-            return_queue.put(rpc_data)
+        return_queue = Queue(rpc_id, max_len=1)
+        return_queue.put(rpc_data)
 
-    def handle_loop(self, service_name):
-        service_id = self._service_map.get(service_name)
-        assert service_id, "service not found."
-
-        service_data = Table(service_id)
-        # assert service_data.exists, "service expired."
-        request_queue = Queue(service_data["request_queue_id"])
-
-        while True:
-            self.handle_call_request(request_queue)
+    def get_request_data(self, service_name):
+        request_queue = self._get_request_queue(service_name)
+        return request_queue.bget(BGET_TIMEOUT)
 
 
 def remote_method(method):
@@ -221,7 +222,9 @@ class RPCService(object):
 
     def __init__(self, enable_multi_instance=True):
         self._rpc_manager = RPCManager()
-        self._heartbeat_timer = None
+        self._is_running = False
+        self._heartbeat_thread = None
+        self._process_thread = None
         self._enable_multi_instance = enable_multi_instance
 
     @property
@@ -230,8 +233,14 @@ class RPCService(object):
 
     def start(self):
         self.register_methods()
+        self._is_running = True
         self.start_heartbeat()
-        self._rpc_manager.handle_loop(self.service_name)
+        self.start_process()
+
+    def stop(self):
+        self._is_running = False
+        self.stop_heartbeat()
+        self.stop_process()
 
     def register_methods(self):
         self._rpc_manager.register_service(self.service_name, self.rpc_methods, self._enable_multi_instance)
@@ -239,22 +248,36 @@ class RPCService(object):
             method = getattr(self, name)
             self._rpc_manager.register_method(name, method)
 
-    def start_heartbeat(self):
-        self._heartbeat()
+    def _process(self):
+        while self._is_running:
+            request_data = self._rpc_manager.get_request_data(self.service_name)
+            if request_data:
+                self._rpc_manager.handle_call_request(request_data)
 
-    def stop_heartbeat(self):
-        if self._heartbeat_timer:
-            self._heartbeat_timer.cancel()
-            self._heartbeat_timer = None
+    def start_process(self):
+        assert self._process_thread is None, "process thread is already running."
+        self._process_thread = threading.Thread(target=self._process)
+        self._process_thread.start()
+
+    def stop_process(self):
+        assert self._process_thread is not None, "process thread is not running."
+        self._process_thread.join()
+        self._process_thread = None
 
     def _heartbeat(self):
-        if self._heartbeat_timer:
-            self._heartbeat_timer.cancel()
+        while self._is_running:
+            self._rpc_manager.service_heartbeat(self.service_name)
+            time.sleep(SERVICE_HEARTBEAT_INTERVAL // 1000)
 
-        self._rpc_manager.service_heartbeat(self.service_name)
+    def start_heartbeat(self):
+        assert self._process_thread is None, "heartbeat thread is already running."
+        self._heartbeat_thread = threading.Thread(target=self._heartbeat)
+        self._heartbeat_thread.start()
 
-        self._heartbeat_timer = threading.Timer(SERVICE_HEARTBEAT_INTERVAL / 1000., self._heartbeat)
-        self._heartbeat_timer.start()
+    def stop_heartbeat(self):
+        assert self._heartbeat_thread is not None, "heartbeat thread is not running."
+        self._heartbeat_thread.join()
+        self._heartbeat_thread = None
 
 
 class RPCClientMethod(object):

@@ -9,7 +9,7 @@ Description:
     table_test.py
 ----------------------------------------------------------------------------"""
 
-from core.communication.table import Table
+from core.communication.collections.table import Table
 
 
 def main():
