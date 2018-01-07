@@ -15,6 +15,7 @@ from PIL import Image
 
 from ..communication.queue import Queue
 from ..communication.table import Table
+from ..communication.redis_object import NoPacker
 from ..config_reader import ConfigReader
 
 
@@ -25,7 +26,7 @@ class FrameReader(object):
 
         self._size = Table(config["frame_size_key"])
 
-        self._queue = Queue(config["frame_cache_key"], config["frame_cache_length"], pack_item=False)
+        self._queue = Queue(config["frame_cache_key"], packer=NoPacker, max_len=config["frame_cache_length"])
 
         self._fps = config["fps"]
         self._frame_interval = 1. / self._fps

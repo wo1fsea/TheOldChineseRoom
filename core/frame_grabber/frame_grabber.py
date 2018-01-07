@@ -15,6 +15,7 @@ import zlib
 import struct
 from ..communication.queue import Queue
 from ..communication.table import Table
+from ..communication.redis_object import NoPacker
 from ..config_reader import ConfigReader
 
 
@@ -29,7 +30,7 @@ class FrameGrabber(object):
         self._size = Table(config["frame_size_key"])
         self._update_frame_size()
 
-        self._queue = Queue(config["frame_cache_key"], config["frame_cache_length"], pack_item=False)
+        self._queue = Queue(config["frame_cache_key"], packer=NoPacker, max_len=config["frame_cache_length"])
         self._queue.clear()
 
         self._fps = config["fps"]

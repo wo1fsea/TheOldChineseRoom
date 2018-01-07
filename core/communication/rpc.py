@@ -22,7 +22,7 @@ from .table import Table
 SERVICE_TTL = 30 * 1000  # milliseconds
 SERVICE_HEARTBEAT_INTERVAL = SERVICE_TTL / 2  # milliseconds
 
-BGET_TIMEOUT = SERVICE_TTL / 1000  # seconds
+BGET_TIMEOUT = int(SERVICE_TTL / 1000)  # seconds
 ASYNC_GET_POLL_INTERVAL = 0.1  # seconds
 
 RPC_SERVICE_TABLE_KEY = "global_service_table"
@@ -138,7 +138,7 @@ class RPCManager(Singleton):
         exception = rpc_data["exception"]
 
         if exception:
-            raise eval(exception)
+            raise exception
 
         return return_value
 
@@ -184,7 +184,7 @@ class RPCManager(Singleton):
                     return_value = method(params)
 
             except Exception as ex:
-                exception = ex.__repr__()
+                exception = ex
 
             rpc_data["return_value"] = return_value
             rpc_data["exception"] = exception
@@ -274,7 +274,7 @@ class AsyncRPCClientMethod(object):
         self._method_name = method_name
 
     async def __call__(self, *args):
-        return await self._rpc_manager.call_method(self._service_name, self._method_name, *args)
+        return await self._rpc_manager.async_call_method(self._service_name, self._method_name, *args)
 
 
 class RPCClient(object):
