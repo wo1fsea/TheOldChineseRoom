@@ -295,7 +295,21 @@ class RPCClient(object):
             return RPCClientMethod(self._rpc_manager, self._service_name, method_name)
         raise AttributeError("type object '%s' has no attribute '%s'" % (self.__class__.__name__, method_name))
 
-    def get_async_method(self, method_name):
+
+class AsyncRPCClient(object):
+    def __init__(self, service_name):
+        super(AsyncRPCClient, self).__init__()
+        self._service_name = service_name
+        self._rpc_manager = RPCManager()
+
+        assert service_name in self._rpc_manager.get_services(), "service not found."
+        self._method_list = self._rpc_manager.get_method_list(service_name)
+
+    @property
+    def service_name(self):
+        return self.service_name
+
+    def __getattr__(self, method_name):
         if method_name in self._method_list:
             return AsyncRPCClientMethod(self._rpc_manager, self._service_name, method_name)
         raise AttributeError("type object '%s' has no attribute '%s'" % (self.__class__.__name__, method_name))
