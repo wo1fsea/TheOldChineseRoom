@@ -14,7 +14,7 @@ import struct
 from PIL import Image
 
 from ..communication.collections.queue import Queue
-from ..communication.collections.table import Table
+from ..communication.collections.dict import Dict
 from ..communication.collections.redis_object import NoPacker
 from ..config_reader import ConfigReader
 
@@ -24,7 +24,7 @@ class FrameReader(object):
         super(FrameReader, self).__init__()
         config = ConfigReader().get_config("frame_grabber")
 
-        self._size = Table(config["frame_size_key"])
+        self._size = Dict(config["frame_size_key"])
 
         self._queue = Queue(config["frame_cache_key"], packer=NoPacker, max_len=config["frame_cache_length"])
 

@@ -14,7 +14,7 @@ import time
 import zlib
 import struct
 from ..communication.collections.queue import Queue
-from ..communication.collections.table import Table
+from ..communication.collections.dict import Dict
 from ..communication.collections.redis_object import NoPacker
 from ..config_reader import ConfigReader
 
@@ -27,7 +27,7 @@ class FrameGrabber(object):
         self._mss = mss.mss()
         self._monitor = self._mss.monitors[1]
 
-        self._size = Table(config["frame_size_key"])
+        self._size = Dict(config["frame_size_key"])
         self._update_frame_size()
 
         self._queue = Queue(config["frame_cache_key"], packer=NoPacker, max_len=config["frame_cache_length"])

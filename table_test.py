@@ -9,11 +9,11 @@ Description:
     table_test.py
 ----------------------------------------------------------------------------"""
 
-from core.communication.collections.table import Table
+from core.communication.collections.dict import Dict
 
 
 def main():
-    a = Table("A")
+    a = Dict("A")
     a["1"] = 1
     a["2"] = 2
     a[3] = "3"

@@ -13,11 +13,11 @@ from .redis_object import RedisObject, DEFAULT_PACKER
 from collections import UserDict
 
 
-class Table(RedisObject, UserDict):
+class Dict(RedisObject, UserDict):
     Redis_Type = "hash"
 
     def __init__(self, key, packer=DEFAULT_PACKER):
-        super(Table, self).__init__(key, packer)
+        super(Dict, self).__init__(key, packer)
 
         # assert self.get_type() in (self.Redis_Type, RedisObject.Redis_Type), "Wrong Redis Object Type"
 
