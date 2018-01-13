@@ -6,15 +6,16 @@ Author:
 Date:
     2017/12/16
 Description:
-    console.py
+    watcher_console.py
 ----------------------------------------------------------------------------"""
+import sys
+import time
 
-import asyncio
 from threading import Thread
 
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.layout.containers import ConditionalContainer
-from prompt_toolkit.filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, to_cli_filter, Condition
+from prompt_toolkit.filters import IsDone, RendererHeightIsKnown
 from prompt_toolkit.layout.screen import Char
 from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer, AcceptAction
@@ -24,7 +25,7 @@ from prompt_toolkit.key_binding.defaults import load_key_bindings
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float
 from prompt_toolkit.layout.controls import BufferControl, FillControl, TokenListControl
-from prompt_toolkit.layout.dimension import LayoutDimension as D
+from prompt_toolkit.layout.dimension import LayoutDimension as Dim
 from prompt_toolkit.shortcuts import create_eventloop
 from prompt_toolkit.token import Token
 from prompt_toolkit.contrib.completers import WordCompleter
@@ -33,13 +34,20 @@ from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.document import Document
 
+from core.watcher import WatcherClient
+
 
 class Console(object):
-    def __init__(self, title="", commands={}, get_left_buffer=None, get_right_buffer=None):
+    def __init__(self, title="", commands={}, get_left_top_buffer=None, get_left_bottom_buffer=None,
+                 get_right_buffer=None):
         self._title = title
+        self._left_top_buffer_title = ""
+        self._left_bottom_buffer_title = ""
+        self._right_buffer_title = ""
         self._toolbar_tips = ""
         self._commands = commands
-        self._get_left_buffer = get_left_buffer if get_left_buffer else lambda: ""
+        self._get_left_top_buffer = get_left_top_buffer if get_left_top_buffer else lambda: ""
+        self._get_left_bottom_buffer = get_left_bottom_buffer if get_left_bottom_buffer else lambda: ""
         self._get_right_buffer = get_right_buffer if get_right_buffer else lambda: ""
         self._registry_key()
         self._init_word_completer()
@@ -48,11 +56,29 @@ class Console(object):
         self._init_style()
         self._init_application()
 
+        self._cli = None
+        self._thread_cli = None
+        self._thread_data = None
         self._stop = False
 
     def _get_title_tokens(self, cli):
         return [
-            (Token.Title, ' %s ' % self._title),
+            (Token.Title, ' %s ' % self._title.upper()),
+        ]
+
+    def _get_left_top_buffer_title(self, cli):
+        return [
+            (Token.Category, ' %s ' % self._left_top_buffer_title),
+        ]
+
+    def _get_left_bottom_buffer_title(self, cli):
+        return [
+            (Token.Category, ' %s ' % self._left_bottom_buffer_title),
+        ]
+
+    def _get_right_buffer_title(self, cli):
+        return [
+            (Token.Category, ' %s ' % self._right_buffer_title),
         ]
 
     def _get_bottom_toolbar_tokens(self, cli):
@@ -64,23 +90,40 @@ class Console(object):
     def _init_layouts(self):
         self._layout = HSplit([
             # title
-            Window(height=D.exact(1), content=TokenListControl(self._get_title_tokens, align_center=True)),
+            Window(height=Dim.exact(1),
+                   content=TokenListControl(self._get_title_tokens, default_char=Char(' ', Token.Title),
+                                            align_center=True)),
             # separator
-            Window(height=D.exact(1), content=FillControl('-', token=Token.Line)),
+            Window(height=Dim.exact(1), content=FillControl('-', token=Token.Line)),
             # body
             VSplit([
                 # left buffer
-                Window(content=BufferControl(buffer_name='LEFT')),
+                HSplit([
+                    Window(height=Dim.exact(1),
+                           content=TokenListControl(self._get_left_top_buffer_title,
+                                                    default_char=Char(' ', Token.Category), )),
+                    Window(content=BufferControl(buffer_name='LEFT_TOP')),
+                    Window(height=Dim.exact(1), content=FillControl('-', token=Token.Line)),
+                    Window(height=Dim.exact(1),
+                           content=TokenListControl(self._get_left_bottom_buffer_title,
+                                                    default_char=Char(' ', Token.Category), )),
+                    Window(content=BufferControl(buffer_name='LEFT_BOTTOM')),
+                ]),
                 # separator
-                Window(width=D.exact(1), content=FillControl('|', token=Token.Line)),
+                Window(width=Dim.exact(1), content=FillControl('|', token=Token.Line)),
                 # right buffer
-                Window(content=BufferControl(buffer_name='RIGHT')),
+                HSplit([
+                    Window(height=Dim.exact(1),
+                           content=TokenListControl(self._get_right_buffer_title,
+                                                    default_char=Char(' ', Token.Category), )),
+                    Window(content=BufferControl(buffer_name='RIGHT')),
+                ]),
             ]),
             # separator
-            Window(height=D.exact(1), content=FillControl('-', token=Token.Line)),
+            Window(height=Dim.exact(1), content=FillControl('-', token=Token.Line)),
             FloatContainer(
                 # input field
-                Window(height=D.exact(3), content=BufferControl(buffer_name=DEFAULT_BUFFER)),
+                Window(height=Dim.exact(3), content=BufferControl(buffer_name=DEFAULT_BUFFER)),
                 # completion menus
                 [Float(xcursor=True, ycursor=True,
                        content=CompletionsMenu(max_height=5,
@@ -91,7 +134,7 @@ class Console(object):
             ConditionalContainer(
                 Window(
                     TokenListControl(self._get_bottom_toolbar_tokens, default_char=Char(' ', Token.Toolbar)),
-                    height=D.exact(1)), filter=~IsDone() & RendererHeightIsKnown())
+                    height=Dim.exact(1)), filter=~IsDone() & RendererHeightIsKnown())
         ])
 
         return self._layout
@@ -121,14 +164,16 @@ class Console(object):
             DEFAULT_BUFFER: Buffer(is_multiline=False, history=InMemoryHistory(), enable_history_search=True,
                                    completer=self._word_completer, complete_while_typing=True,
                                    accept_action=AcceptAction(handler=self._accept_handler)),
-            'LEFT': Buffer(is_multiline=True, read_only=True),
+            'LEFT_TOP': Buffer(is_multiline=True, read_only=True),
+            'LEFT_BOTTOM': Buffer(is_multiline=True, read_only=True),
             'RIGHT': Buffer(is_multiline=True, read_only=True),
         }
 
     def _init_style(self):
         self._style = style_from_dict({
+            Token.Title: '#000000 bg:#ffffff',
+            Token.Category: '#000000 bg:#00ff00',
             Token.Toolbar: '#ffffff bg:#ff0000',
-            Token.Title: '#ffffff bg:#ff0000',
         })
         return self._style
 
@@ -161,18 +206,24 @@ class Console(object):
                 return
 
             time.sleep(0.3)
-            self._buffers["LEFT"].set_document(Document(self._get_left_buffer(), -1), True)
-            self._buffers["RIGHT"].set_document(Document(self._get_right_buffer(), -1), True)
+
+            self._left_top_buffer_title, left_top_buffer = self._get_left_top_buffer()
+            self._left_bottom_buffer_title, left_bottom_buffer = self._get_left_bottom_buffer()
+            self._right_buffer_title, right_buffer = self._get_right_buffer()
+
+            self._buffers["LEFT_TOP"].set_document(Document(left_top_buffer, -1), True)
+            self._buffers["LEFT_BOTTOM"].set_document(Document(left_bottom_buffer, -1), True)
+            self._buffers["RIGHT"].set_document(Document(right_buffer, -1), True)
             self._cli.invalidate()
 
     def _run_cli(self):
         self._cli.run()
 
     def run(self):
-        eventloop = create_eventloop()
+        event_loop = create_eventloop()
 
         try:
-            self._cli = CommandLineInterface(application=self._application, eventloop=eventloop)
+            self._cli = CommandLineInterface(application=self._application, eventloop=event_loop)
             self._thread_cli = Thread(target=self._run_cli)
             self._thread_data = Thread(target=self._refresh_buffers)
 
@@ -183,7 +234,7 @@ class Console(object):
             self._thread_data.join()
 
         finally:
-            eventloop.close()
+            event_loop.close()
 
     def set_title(self, title):
         self._title = title
@@ -192,29 +243,37 @@ class Console(object):
         self._toolbar_tips = toolbar_tips
 
 
-if __name__ == '__main__':
-    import time
+def start(watcher_key="grabber"):
+    watcher_key = watcher_key
+    watcher_client = WatcherClient(watcher_key)
+    watcher_commands = watcher_client.get_commands()
+    commands = {}
+    buffers = {"left_top": "", "left_bottom": "", "right": ""}
 
-    cmd = ""
+    for command in watcher_commands:
+        def func(*args, cmd=command):
+            buffers["left_bottom"] = str(watcher_client.run_command(cmd, *args))
 
+        commands[command] = func
 
-    def l():
-        return "cmd: %s\n %f" % (cmd, time.time())
+    def get_left_top_buffer():
+        status = watcher_client.get_status()
+        lines = []
+        for k, v in status.items():
+            line = "    %s: %s" % (str(k), str(v))
+            lines.append(line)
+        buffers["left_top"] = "\n%s" % "\n".join(lines)
+        return "status: ", buffers["left_top"]
 
+    def get_right_buffer():
+        return "log:", buffers["right"]
 
-    def set_cmd(x):
-        global cmd
-        cmd = x
+    def get_left_bottom_buffer():
+        return "command result:", buffers["left_bottom"]
 
+    console = Console(title="watcher_%s" % watcher_key, commands=commands,
+                      get_left_top_buffer=get_left_top_buffer,
+                      get_left_bottom_buffer=get_left_bottom_buffer,
+                      get_right_buffer=get_right_buffer)
 
-    commands = {
-        "set_cmd": set_cmd,
-        "clear_cmd": lambda: set_cmd("")
-    }
-
-    c = Console(title="TEST", commands=commands, get_left_buffer=l, get_right_buffer=l)
-    c.run()
-
-
-def start():
-    pass
+    console.run()

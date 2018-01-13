@@ -21,6 +21,13 @@ class Dict(RedisObject, UserDict):
 
         # assert self.get_type() in (self.Redis_Type, RedisObject.Redis_Type), "Wrong Redis Object Type"
 
+    @property
+    def data(self):
+        raise NotImplementedError()
+
+    def __len__(self):
+        return self.redis.hlen(self.key)
+
     def __getitem__(self, key):
         b_key = self.pack(key)
         b_item = self.redis.hget(self.key, b_key)
@@ -32,9 +39,6 @@ class Dict(RedisObject, UserDict):
         b_key = self.pack(key)
         b_item = self.pack(value)
         self.redis.hset(self.key, b_key, b_item)
-
-    def __len__(self):
-        return self.redis.hlen(self.key)
 
     def __delitem__(self, key):
         b_key = self.pack(key)

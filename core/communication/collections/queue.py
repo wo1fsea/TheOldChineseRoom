@@ -15,6 +15,8 @@ QUEUE_MAX_LENGTH = -1
 
 
 class Queue(RedisObject):
+    Redis_Type = "list"
+
     def __init__(self, key, packer=DEFAULT_PACKER, max_len=QUEUE_MAX_LENGTH):
         super(Queue, self).__init__(key, packer)
         self.max_len = max_len
