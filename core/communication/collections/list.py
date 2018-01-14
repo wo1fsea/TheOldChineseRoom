@@ -19,92 +19,83 @@ class List(RedisObject, UserList):
     def __init__(self, key, packer=DEFAULT_PACKER):
         super(List, self).__init__(key, packer)
 
-    @property
-    def data(self):
-        raise NotImplementedError()
-
-    def __lt__(self, other):
-        return self.data < self.__cast(other)
-
-    def __le__(self, other):
-        return self.data <= self.__cast(other)
-
-    def __eq__(self, other):
-        return self.data == self.__cast(other)
-
-    def __gt__(self, other):
-        return self.data > self.__cast(other)
-
-    def __ge__(self, other):
-        return self.data >= self.__cast(other)
+    def __get_data(self):
+        return map(self.unpack, self.redis.lrange(self.key, 0, -1))
 
     def __cast(self, other):
-        return other.data if isinstance(other, UserList) else other
+        return tuple(other)
+
+    @property
+    def data(self):
+        return tuple(self.__get_data())
 
     def __contains__(self, item):
         return item in self.data
 
     def __len__(self):
-        return len(self.data)
+        return self.redis.llen(self.key)
 
     def __getitem__(self, i):
-        return self.data[i]
+        if isinstance(i, slice):
+            return self.data[i]
+
+        item = self.redis.lindex(self.key, i)
+        if item:
+            item = self.unpack(item)
+        return item
 
     def __setitem__(self, i, item):
-        self.data[i] = item
+        packed = self.pack(item)
+        self.redis.lset(self.key, i, packed)
 
     def __delitem__(self, i):
-        del self.data[i]
+        raise NotImplementedError()
 
     def __add__(self, other):
-        if isinstance(other, UserList):
-            return self.__class__(self.data + other.data)
-        elif isinstance(other, type(self.data)):
-            return self.__class__(self.data + other)
-        return self.__class__(self.data + list(other))
+        raise NotImplementedError()
 
     def __radd__(self, other):
-        if isinstance(other, UserList):
-            return self.__class__(other.data + self.data)
-        elif isinstance(other, type(self.data)):
-            return self.__class__(other + self.data)
-        return self.__class__(list(other) + self.data)
+        raise NotImplementedError()
 
     def __iadd__(self, other):
-        if isinstance(other, UserList):
-            self.data += other.data
-        elif isinstance(other, type(self.data)):
-            self.data += other
-        else:
-            self.data += list(other)
+        self.extend(other)
         return self
 
     def __mul__(self, n):
-        return self.__class__(self.data * n)
+        raise NotImplementedError()
 
     __rmul__ = __mul__
 
     def __imul__(self, n):
-        self.data *= n
+        self.extend(self.data * (n - 1))
         return self
 
     def append(self, item):
-        self.data.append(item)
+        item = self.pack(item)
+        self.redis.rpush(self._key, item)
 
     def insert(self, i, item):
-        self.data.insert(i, item)
+        data = list(self.__get_data())
+        data.insert(i, item)
+        self.clear()
+        self.redis.rpush(self._key, *data)
 
     def pop(self, i=-1):
-        return self.data.pop(i)
+        data = list(self.__get_data())
+        item = data.pop(i)
+        self.clear()
+        self.redis.rpush(self._key, *data)
+
+        return item
 
     def remove(self, item):
-        self.data.remove(item)
-
-    def clear(self):
-        self.data.clear()
+        data = list(self.__get_data())
+        data.remove(item)
+        self.clear()
+        self.redis.rpush(self._key, *data)
 
     def copy(self):
-        return self.__class__(self)
+        raise NotImplementedError()
 
     def count(self, item):
         return self.data.count(item)
@@ -113,13 +104,16 @@ class List(RedisObject, UserList):
         return self.data.index(item, *args)
 
     def reverse(self):
-        self.data.reverse()
+        data = list(self.__get_data())
+        data.reverse()
+        self.clear()
+        self.redis.rpush(self._key, *data)
 
     def sort(self, *args, **kwds):
-        self.data.sort(*args, **kwds)
+        data = list(self.__get_data())
+        data.sort(*args, **kwds)
+        self.clear()
+        self.redis.rpush(self._key, *data)
 
     def extend(self, other):
-        if isinstance(other, UserList):
-            self.data.extend(other.data)
-        else:
-            self.data.extend(other)
+        self.redis.rpush(self._key, *other )

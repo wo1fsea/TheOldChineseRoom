@@ -9,9 +9,11 @@ Description:
     watcher.py
 ----------------------------------------------------------------------------"""
 
+import time
+
 from utils.singleton import Singleton
 from ..communication.rpc import RPCService, RPCClient, remote_method
-from ..communication.collections.queue import Queue
+from ..communication.collections.list import List
 from ..communication.collections.dict import Dict
 
 WATCHER_COMMAND_SERVICE_NAME = "watcher_command_%s"
@@ -45,7 +47,7 @@ class Watcher(Singleton):
         super(Watcher, self).__init__()
         self._watcher_key = watcher_key
         self._watcher_command_service = WatcherCommandService(WATCHER_COMMAND_SERVICE_NAME % watcher_key)
-        self._log = Queue(WATCHER_LOG_QUEUE_KEY % self._watcher_key)
+        self._log = List(WATCHER_LOG_QUEUE_KEY % self._watcher_key)
         self._status = Dict(WATCHER_STATUS_DICT_KEY % self._watcher_key)
 
         self._status.clear()
@@ -54,7 +56,7 @@ class Watcher(Singleton):
         self._status.update(status)
 
     def log(self, log_message):
-        self._log.put(log_message)
+        self._log.append("[%s] %s" % (time.asctime(time.localtime(time.time())), log_message))
 
     def register_commands(self, commands):
         self._watcher_command_service.register_commands(commands)
@@ -71,14 +73,17 @@ class WatcherClient(object):
         super(WatcherClient, self).__init__()
         self._watcher_key = watcher_key
         self._watcher_command_service = RPCClient(WATCHER_COMMAND_SERVICE_NAME % watcher_key)
-        self._log = Queue(WATCHER_LOG_QUEUE_KEY % self._watcher_key)
+        self._log = List(WATCHER_LOG_QUEUE_KEY % self._watcher_key)
         self._status = Dict(WATCHER_STATUS_DICT_KEY % self._watcher_key)
 
     def get_status(self):
         return dict(self._status)
 
-    def get_logs(self, num=0):
-        raise NotImplementedError()
+    def get_logs(self, last_n=0):
+        if last_n > 0:
+            last_n = min(len(self._log), last_n)
+            return list(self._log[-last_n:])
+        return list(self._log)
 
     def get_commands(self):
         return self._watcher_command_service.get_commands()

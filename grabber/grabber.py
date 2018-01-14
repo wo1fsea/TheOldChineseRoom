@@ -51,7 +51,9 @@ def start():
             fc.set_geometry(wg["x"], wg["y"], wg["width"], wg["height"])
             last_check = time.time()
             watcher.set_status(wg)
+            watcher.log("hi, is working.")
 
         fc.grab_frame()
 
+    # time.sleep(1)
     watcher.stop_watcher_command_service()

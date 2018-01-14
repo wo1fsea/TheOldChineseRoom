@@ -8,7 +8,7 @@ Date:
 Description:
     watcher_console.py
 ----------------------------------------------------------------------------"""
-import sys
+
 import time
 
 from threading import Thread
@@ -266,6 +266,11 @@ def start(watcher_key="grabber"):
         return "status: ", buffers["left_top"]
 
     def get_right_buffer():
+        lines = []
+        logs = watcher_client.get_logs(10)
+        for log in logs:
+            lines.append(log)
+        buffers["right"] = "\n".join(lines)
         return "log:", buffers["right"]
 
     def get_left_bottom_buffer():

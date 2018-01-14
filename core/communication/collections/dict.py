@@ -62,7 +62,7 @@ class Dict(RedisObject, UserDict):
         return map(self.unpack, self.redis.hkeys(self.key))
 
     def items(self):
-        return map(lambda x: (self.unpack(x[0]), self.unpackb(x[1])), self.redis.hgetall(self.key).items())
+        return map(lambda x: (self.unpack(x[0]), self.unpack(x[1])), self.redis.hgetall(self.key).items())
 
     def values(self):
         return map(self.unpack, self.redis.hvals(self.key))
@@ -76,3 +76,6 @@ class Dict(RedisObject, UserDict):
         except KeyError:
             self[key] = default
         return default
+
+    def copy(self):
+        raise NotImplementedError()
