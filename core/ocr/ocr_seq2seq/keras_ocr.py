@@ -75,46 +75,12 @@ def speckle(img):
 # also uses a random font, a slight random rotation,
 # and a random amount of speckle noise
 
+from image_generator import ImageGenerator
+
+
 def paint_text(text, w, h, rotate=False, ud=False, multi_fonts=False):
-    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
-    with cairo.Context(surface) as context:
-        context.set_source_rgb(1, 1, 1)  # White
-        context.paint()
-        # this font list works in CentOS 7
-        if multi_fonts:
-            fonts = ['Century Schoolbook', 'Courier', 'STIX', 'URW Chancery L', 'FreeMono']
-            context.select_font_face(np.random.choice(fonts), cairo.FONT_SLANT_NORMAL,
-                                     np.random.choice([cairo.FONT_WEIGHT_BOLD, cairo.FONT_WEIGHT_NORMAL]))
-        else:
-            context.select_font_face('Courier', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-        context.set_font_size(25)
-        box = context.text_extents(text)
-        border_w_h = (4, 4)
-        if box[2] > (w - 2 * border_w_h[1]) or box[3] > (h - 2 * border_w_h[0]):
-            raise IOError('Could not fit string into image. Max char count is too large for given image width.')
-
-        # teach the RNN translational invariance by
-        # fitting text box randomly on canvas, with some room to rotate
-        max_shift_x = w - box[2] - border_w_h[0]
-        max_shift_y = h - box[3] - border_w_h[1]
-        top_left_x = np.random.randint(0, int(max_shift_x))
-        if ud:
-            top_left_y = np.random.randint(0, int(max_shift_y))
-        else:
-            top_left_y = h // 2
-        context.move_to(top_left_x - int(box[0]), top_left_y - int(box[1]))
-        context.set_source_rgb(0, 0, 0)
-        context.show_text(text)
-
-    buf = surface.get_data()
-    a = np.frombuffer(buf, np.uint8)
-    a.shape = (h, w, 4)
-    a = a[:, :, 0]  # grab single channel
-    a = a.astype(np.float32) / 255
-    a = np.expand_dims(a, 0)
-    if rotate:
-        a = image.random_rotation(a, 3 * (w - top_left_x) / w + 1)
-    a = speckle(a)
+    ig = ImageGenerator(w, h)
+    a = ig.generate(text, True, True)
 
     return a
 
@@ -458,10 +424,10 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     #     gru1_merged)
 
     # transforms RNN output to character activations:
-    attention = Dense(img_gen.get_output_size(), kernel_initializer='he_normal', name='dense2')(concatenate([gru_1, gru_1b]))
+    attention = Dense(img_gen.get_output_size(), kernel_initializer='he_normal', name='dense2')(
     # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
     y_pred = Activation('softmax', name='softmax')(attention)
-    Model(inputs=input_data, outputs=y_pred).summary()
+    model = Model(inputs=input_data, outputs=y_pred).summary()
 
     labels = Input(name='the_labels', shape=[img_gen.absolute_max_string_len], dtype='float32')
     input_length = Input(name='input_length', shape=[1], dtype='int64')
