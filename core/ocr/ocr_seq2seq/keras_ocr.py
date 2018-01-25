@@ -39,9 +39,9 @@ from scipy import ndimage
 import pylab
 from keras import backend as K
 from keras.layers.convolutional import Conv2D, MaxPooling2D
-from keras.layers import Input, Dense, Activation
+from keras.layers import Input, Dense, Activation, Permute
 from keras.layers import Reshape, Lambda
-from keras.layers.merge import add, concatenate
+from keras.layers.merge import add, concatenate, multiply
 from keras.models import Model
 from keras.layers.recurrent import GRU
 from keras.optimizers import SGD
@@ -454,13 +454,20 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
 
     # cuts down input size going into RNN:
-    inner = Dense(time_dense_size, activation=act, name='dense1')(inner)
+    code = Dense(time_dense_size, activation=act, name='dense1')(inner)
+
+    inner = Permute((2, 1))(code)
+    inner = Dense(64, activation='softmax')(inner)
+    attention = Permute((2, 1), name='attention_vec')(inner)
+    # output_attention_mul = merge([inputs, a_probs], name='attention_mul', mode='mul')
+    output_attention_mul = multiply([code, attention], name='attention_mul')
+
 
     # Two layers of bidirectional GRUs
     # GRU seems to work as well, if not better than LSTM:
-    gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(inner)
+    gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(attention)
     gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(
-        inner)
+        attention)
     # gru1_merged = add([gru_1, gru_1b])
     # gru_2 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru2')(gru1_merged)
     # gru_2b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru2_b')(
@@ -504,8 +511,8 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 
 
 if __name__ == '__main__':
-    # run_name = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    run_name = "ddd"
-    train(run_name, 1, 20, 128)
+    run_name = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    # run_name = "ddd"
+    train(run_name, 0, 20, 256)
     # increase to wider images and start at epoch 20. The learned weights are reloaded
-    train(run_name, 20, 25, 512)
+    train(run_name, 20, 25, 256)
