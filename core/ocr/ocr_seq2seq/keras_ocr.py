@@ -122,7 +122,7 @@ def paint_text2(text, w, h, rotate=False, ud=False, multi_fonts=False):
 from image_generator import ImageGenerator
 def paint_text(text, w, h, rotate=False, ud=False, multi_fonts=False):
     ig = ImageGenerator(w, h)
-    a = ig.generate(text, rotate, False)
+    a = ig.generate(text, rotate, rotate, False)
     a = a.astype(np.float32) / 255
 
     return a
@@ -457,7 +457,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     code = Dense(time_dense_size, activation=act, name='dense1')(inner)
 
     inner = Permute((2, 1))(code)
-    inner = Dense(64, activation='softmax')(inner)
+    inner = Dense(round(img_w/pool_size**2), activation='softmax')(inner)
     attention = Permute((2, 1), name='attention_vec')(inner)
     # output_attention_mul = merge([inputs, a_probs], name='attention_mul', mode='mul')
     output_attention_mul = multiply([code, attention], name='attention_mul')
