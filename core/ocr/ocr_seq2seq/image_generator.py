@@ -51,7 +51,7 @@ class ImageGenerator(object):
         noisy[noisy > 255] = 255
         return noisy.astype(np.uint8)
 
-    def generate(self, string, rotation=False, noise=False):
+    def generate(self, string, rotation=False, translate=False, noise=False):
         """
 
         :param string:
@@ -80,11 +80,11 @@ class ImageGenerator(object):
             if w / h > self.width / self.height:
                 h = round(h / w * self.width)
                 w = round(self.width)
-                x, y = 0, round(np.random.random() * (self.height - h))
+                x, y = (0, round(np.random.random() * (self.height - h))) if translate else (0, 0)
             else:
                 w = round(w / h * self.height)
                 h = round(self.height)
-                x, y = round(np.random.random() * (self.width - w)), 0
+                x, y = (round(np.random.random() * (self.width - w)), 0) if translate else (0, 0)
 
             image_tmp = image_tmp.resize((w, h))
 
@@ -100,8 +100,6 @@ class ImageGenerator(object):
         # image = Image.fromarray(image_array, mode="L")
         # image.save("a.png")
         return image_array
-
-
 
 
 ig = ImageGenerator(128, 64)
