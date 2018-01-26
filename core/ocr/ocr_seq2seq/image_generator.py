@@ -17,7 +17,7 @@ import math
 import random
 from keras import backend as K
 
-CHAR_SET = "1234567890-=" \
+ALPHABET = "1234567890-=" \
            "!@#$%^&*()_+" \
            "qwertyuiop[]\\" \
            "QWERTYUIOP{}|" \
@@ -26,10 +26,12 @@ CHAR_SET = "1234567890-=" \
            "zxcvbnm,./" \
            "ZXCVBNM<>?"
 
-CHAR_SET_NUM = "+-1234567890.,"
+ALPHABET_NUM = "+-1234567890.,"
+
 FONT_SIZE = 32
 FONT = "arial.ttf"
 ROTATION_DEGREE = 10
+
 
 
 class ImageGenerator(object):
@@ -56,6 +58,8 @@ class ImageGenerator(object):
 
         :param string:
         :param rotation:
+        :param translate:
+        :param noise:
         :return:
         """
         font = np.random.choice(self.font_set)

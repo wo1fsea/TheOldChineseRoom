@@ -410,7 +410,7 @@ class VizCallback(keras.callbacks.Callback):
 
 def train(run_name, start_epoch, stop_epoch, img_w):
     # Input Parameters
-    img_h = 64
+    img_h = 32
     words_per_epoch = 16000
     val_split = 0.2
     val_words = int(words_per_epoch * (val_split))
@@ -420,7 +420,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     kernel_size = (4, 4)
     pool_size = 2
     time_dense_size = 32
-    rnn_size = 512
+    rnn_size = 128
     minibatch_size = 32
 
     if K.image_data_format() == 'channels_first':
@@ -454,27 +454,25 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
 
     # cuts down input size going into RNN:
-    code = Dense(time_dense_size, activation=act, name='dense1')(inner)
-
-    inner = Permute((2, 1))(code)
-    inner = Dense(round(img_w/pool_size**2), activation='softmax')(inner)
-    attention = Permute((2, 1), name='attention_vec')(inner)
-    # output_attention_mul = merge([inputs, a_probs], name='attention_mul', mode='mul')
-    output_attention_mul = multiply([code, attention], name='attention_mul')
-
+    inner = Dense(time_dense_size, activation=act, name='dense1')(inner)
 
     # Two layers of bidirectional GRUs
     # GRU seems to work as well, if not better than LSTM:
-    gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(attention)
-    gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(
-        attention)
+    gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(inner)
+    gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(inner)
+
+    code = concatenate([gru_1, gru_1b])
+    inner = Permute((2, 1))(code)
+    inner = Dense(round(img_w/pool_size**2), activation='softmax')(inner)
+    attention = Permute((2, 1), name='attention_vec')(inner)
+    code = multiply([code, attention], name='attention_mul')
+
     # gru1_merged = add([gru_1, gru_1b])
-    # gru_2 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru2')(gru1_merged)
-    # gru_2b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru2_b')(
-    #     gru1_merged)
+    gru_2 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru2')(code)
+    gru_2b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru2_b')(code)
 
     # transforms RNN output to character activations:
-    attention = Dense(img_gen.get_output_size(), kernel_initializer='he_normal', name='dense2')(concatenate([gru_1, gru_1b]))
+    attention = Dense(img_gen.get_output_size(), kernel_initializer='he_normal', name='dense2')(concatenate([gru_2, gru_2b]))
     # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
     y_pred = Activation('softmax', name='softmax')(attention)
     model = Model(inputs=input_data, outputs=y_pred).summary()
@@ -513,6 +511,6 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 if __name__ == '__main__':
     run_name = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     # run_name = "ddd"
-    train(run_name, 0, 20, 256)
+    train(run_name, 0, 20, 512)
     # increase to wider images and start at epoch 20. The learned weights are reloaded
-    train(run_name, 20, 25, 256)
+    train(run_name, 20, 25, 512)
