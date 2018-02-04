@@ -31,7 +31,7 @@ FONT_SIZE = 100
 
 
 class OCRNaive(object):
-    def __init__(self, char_set=CHAR_SET, font="arial.ttf"):
+    def __init__(self, char_set=CHAR_SET, font="/Users/huangquanyong/Documents/GitHub/TheChineseRoom/core/ocr/Arial.ttf"):
         self._base_data = {}
         self._generate_data(char_set, font)
 
@@ -85,7 +85,7 @@ class OCRNaive(object):
         #
         # plt.show()
 
-        return binary * 255
+        return np.uint8(binary * 255)
 
     def r(self, image):
         images = self._split_image(image)
@@ -140,12 +140,13 @@ class OCRNaive(object):
     def _match_char(self, image):
         image = image.convert("L")
         image_data = np.asarray(image, dtype=np.int32)
-        if np.sum(image_data) > image_data.size * 255 / 2:
-            image_data = 255 - image_data
+        image_data = self._binary(image_data)
+        # if np.sum(image_data) > image_data.size * 255 / 2:
+        #     image_data = 255 - image_data
 
         image = Image.fromarray(image_data)
         bbox = image.getbbox()
-        bbox = (bbox[0], 0, bbox[2], image.size[1])
+        # bbox = (bbox[0], 0, bbox[2], image.size[1])
 
         image = image.crop(bbox)
         image = image.resize((FONT_SIZE, FONT_SIZE))
@@ -177,7 +178,7 @@ class OCRNaive(object):
         draw.text((0, 0), char, font=font)
         # image.show()
         bbox = image.getbbox()
-        bbox = (bbox[0], 0, bbox[2], 100)
+        # bbox = (bbox[0], 0, bbox[2], 100)
         image = image.crop(bbox)
         image = image.convert("L")
         image = image.resize((FONT_SIZE, FONT_SIZE))

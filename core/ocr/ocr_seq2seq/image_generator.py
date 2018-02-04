@@ -33,7 +33,6 @@ FONT = "arial.ttf"
 ROTATION_DEGREE = 10
 
 
-
 class ImageGenerator(object):
 
     def __init__(self, width, height, font_set=(FONT,)):
@@ -99,12 +98,15 @@ class ImageGenerator(object):
 
         if noise:
             image_array = self.add_noise(image_array)
-
-        image_array = np.expand_dims(image_array, 0)
+        #
         # image = Image.fromarray(image_array, mode="L")
         # image.save("a.png")
+
+        image_array = np.expand_dims(image_array, 0)
+
         return image_array
 
 
+
 ig = ImageGenerator(128, 64)
-ig.generate("adbx1021.01")
+print(ig.generate("adbx1021.01").shape)
