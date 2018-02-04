@@ -60,6 +60,8 @@ class DataGenerator(object):
         label = np.ones([self._minibatch_size, 8])
         output_length = np.zeros([self._minibatch_size, 1])
         label_length = np.zeros([self._minibatch_size, 1])
+
+        source_str = []
         for i in range(self._minibatch_size):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
@@ -76,12 +78,14 @@ class DataGenerator(object):
             label[i, 0:len(t_label)] = t_label
             label_length[i] = len(t_label)
             output_length[i] = self._ouput_length
+            source_str.append(text)
 
         inputs = {
             'image_input': X_data,
             'label': label,
             'output_length': output_length,
             'label_length': label_length,
+            'source_str': source_str,
         }
         outputs = {'ctc': np.zeros([self._minibatch_size])}  # dummy data for dummy loss function
         return (inputs, outputs)

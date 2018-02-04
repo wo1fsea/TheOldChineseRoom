@@ -26,6 +26,7 @@ ALPHABET = "1234567890-=" \
            "zxcvbnm,./" \
            "ZXCVBNM<>?"
 
+
 ALPHABET_NUM = "+-1234567890.,"
 
 FONT_SIZE = 32

@@ -55,6 +55,8 @@ alphabet = u'abcdefghijklmnopqrstuvwxyz '
 np.random.seed(55)
 
 from image_generator import ImageGenerator
+
+
 def paint_text(text, w, h, rotate=False, ud=False, multi_fonts=False):
     ig = ImageGenerator(w, h)
     a = ig.generate(text, rotate, rotate, False)
@@ -229,50 +231,6 @@ class TextImageGenerator(keras.callbacks.Callback):
         outputs = {'ctc': np.zeros([self.minibatch_size])}  # dummy data for dummy loss function
         return (inputs, outputs)
 
-    # each time an image is requested from train/val/test, a new random
-    # painting of the text is performed
-    def get_batch2(self, index, size, train):
-        # width and height are backwards from typical Keras convention
-        # because width is the time dimension when it gets fed into the RNN
-        if K.image_data_format() == 'channels_first':
-            X_data = np.ones([size, 1, self.img_w, self.img_h])
-        else:
-            X_data = np.ones([size, self.img_w, self.img_h, 1])
-
-        labels = np.ones([size, self.absolute_max_string_len])
-        input_length = np.zeros([size, 1])
-        label_length = np.zeros([size, 1])
-        source_str = []
-        for i in range(size):
-            # Mix in some blank inputs.  This seems to be important for
-            # achieving translational invariance
-            if train and i > size - 4:
-                if K.image_data_format() == 'channels_first':
-                    X_data[i, 0, 0:self.img_w, :] = self.paint_func('')[0, :, :].T
-                else:
-                    X_data[i, 0:self.img_w, :, 0] = self.paint_func('', )[0, :, :].T
-                labels[i, 0] = self.blank_label
-                input_length[i] = self.img_w // self.downsample_factor - 2
-                label_length[i] = 1
-                source_str.append('')
-            else:
-                if K.image_data_format() == 'channels_first':
-                    X_data[i, 0, 0:self.img_w, :] = self.paint_func(self.X_text[index + i])[0, :, :].T
-                else:
-                    X_data[i, 0:self.img_w, :, 0] = self.paint_func(self.X_text[index + i])[0, :, :].T
-                labels[i, :] = self.Y_data[index + i]
-                input_length[i] = self.img_w // self.downsample_factor - 2
-                label_length[i] = self.Y_len[index + i]
-                source_str.append(self.X_text[index + i])
-        inputs = {'the_input': X_data,
-                  'the_labels': labels,
-                  'input_length': input_length,
-                  'label_length': label_length,
-                  'source_str': source_str  # used for visualization only
-                  }
-        outputs = {'ctc': np.zeros([size])}  # dummy data for dummy loss function
-        return (inputs, outputs)
-
     def next_train(self):
         while 1:
             yield self._get_batch_date()
@@ -282,23 +240,10 @@ class TextImageGenerator(keras.callbacks.Callback):
             yield self._get_batch_date()
 
     def on_train_begin(self, logs={}):
-        self.build_word_list(16000, 4, 1)
-        self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                  rotate=False, ud=False, multi_fonts=False)
+        pass
 
     def on_epoch_begin(self, epoch, logs={}):
-        # rebind the paint function to implement curriculum learning
-        if 3 <= epoch < 6:
-            self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                      rotate=False, ud=True, multi_fonts=False)
-        elif 6 <= epoch < 9:
-            self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                      rotate=False, ud=True, multi_fonts=True)
-        elif epoch >= 9:
-            self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                      rotate=True, ud=True, multi_fonts=True)
-        if epoch >= 21 and self.max_string_len < 12:
-            self.build_word_list(32000, 12, 0.5)
+        pass
 
 
 # the actual loss calc occurs here despite it not being
@@ -429,20 +374,23 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     # Two layers of bidirectional GRUs
     # GRU seems to work as well, if not better than LSTM:
     gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(inner)
-    gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(inner)
+    gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(
+        inner)
 
     code = concatenate([gru_1, gru_1b])
     inner = Permute((2, 1))(code)
-    inner = Dense(round(img_w/pool_size**2), activation='softmax')(inner)
+    inner = Dense(round(img_w / pool_size ** 2), activation='softmax')(inner)
     attention = Permute((2, 1), name='attention_vec')(inner)
     code = multiply([code, attention], name='attention_mul')
 
     # gru1_merged = add([gru_1, gru_1b])
     gru_2 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru2')(code)
-    gru_2b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru2_b')(code)
+    gru_2b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru2_b')(
+        code)
 
     # transforms RNN output to character activations:
-    attention = Dense(img_gen.get_output_size(), kernel_initializer='he_normal', name='dense2')(concatenate([gru_2, gru_2b]))
+    attention = Dense(img_gen.get_output_size(), kernel_initializer='he_normal', name='dense2')(
+        concatenate([gru_2, gru_2b]))
     # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
     y_pred = Activation('softmax', name='softmax')(attention)
     model = Model(inputs=input_data, outputs=y_pred).summary()

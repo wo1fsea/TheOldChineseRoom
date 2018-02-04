@@ -12,4 +12,4 @@ Description:
 from core.ocr.ocr_seq2seq.ocr_model import OCRModel
 
 ocr_m = OCRModel(128, 16)
-ocr_m.train(0, 2)
+ocr_m.train(0, 100)
