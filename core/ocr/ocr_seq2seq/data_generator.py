@@ -64,10 +64,13 @@ class DataGenerator(object):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
             text = self.get_random_string()
+            image = self.image_generator.generate(text)
+            image = image.astype(np.float32) / 255
+
             if K.image_data_format() == 'channels_first':
-                X_data[i, 0, 0:self._image_width, :] = self.image_generator.generate(text)[0, :, :].T
+                X_data[i, 0, 0:self._image_width, :] = image[0, :, :].T
             else:
-                X_data[i, 0:self._image_width, :, 0] = self.image_generator.generate(text)[0, :, :].T
+                X_data[i, 0:self._image_width, :, 0] = image[0, :, :].T
 
             t_label = text_to_label(text, self._alphabet)
             label[i, 0:len(t_label)] = t_label
