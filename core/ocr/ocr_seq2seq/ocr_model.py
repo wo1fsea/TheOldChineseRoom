@@ -65,11 +65,11 @@ def ctc_lambda_func(args):
 
 class TrainingCallback(keras.callbacks.Callback):
 
-    def __init__(self, test_func, text_img_gen, output_path="ocr_model", num_display_words=16):
+    def __init__(self, test_func, test_data_gen, output_path="ocr_model", num_display_words=16):
         super(TrainingCallback, self).__init__()
         self.test_func = test_func
         self.output_path = output_path
-        self.text_img_gen = text_img_gen
+        self.test_data_gen = test_data_gen
         self.num_display_words = num_display_words
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
@@ -79,7 +79,7 @@ class TrainingCallback(keras.callbacks.Callback):
         mean_norm_ed = 0.0
         mean_ed = 0.0
         while num_left > 0:
-            word_batch = next(self.text_img_gen)[0]
+            word_batch = next(self.test_data_gen)[0]
             num_proc = min(word_batch['image_input'].shape[0], num_left)
             decoded_res = decode_batch(self.test_func, word_batch['image_input'][0:num_proc])
             for j in range(num_proc):
@@ -97,7 +97,7 @@ class TrainingCallback(keras.callbacks.Callback):
 
     def _visual_test(self, epoch):
         self.show_edit_distance(256)
-        word_batch = next(self.text_img_gen)[0]
+        word_batch = next(self.test_data_gen)[0]
         res = decode_batch(self.test_func, word_batch['image_input'][0:self.num_display_words])
         if word_batch['image_input'][0].shape[0] < 256:
             cols = 2
