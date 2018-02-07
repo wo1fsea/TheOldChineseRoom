@@ -27,7 +27,7 @@ import keras.callbacks
 
 from .data_generator import DataGenerator
 from .alphabet import ALPHABET_NUM
-from .utils import label_to_text
+from .utils import label_to_text, greedy_decode
 
 CNN_FILTER_NUM = 16
 KERNEL_SIZE = (4, 4)
@@ -126,7 +126,7 @@ class CheckpointSaver(keras.callbacks.Callback):
         model.save_weights(os.path.join(self._path, self.CHECKPOINT_FILE % epoch))
 
     def load_checkpoint(self, model, epoch):
-        model.load_weight(os.path.join(self._path, self.CHECKPOINT_FILE % epoch))
+        model.load_weights(os.path.join(self._path, self.CHECKPOINT_FILE % epoch))
 
     def _checkpoint(self, epoch):
         self.save_checkpoint(self.model, epoch)
@@ -196,8 +196,7 @@ class OCRModel(object):
             code)
 
         # transforms RNN output to character activations:
-        attention = Dense(len(self.alphabet), kernel_initializer='he_normal', name='dense2')(
-            concatenate([gru_2, gru_2b]))
+        attention = Dense(len(self.alphabet), kernel_initializer='he_normal', name='dense2')(concatenate([gru_2, gru_2b]))
         # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
         y_pred = Activation('softmax', name='softmax')(attention)
 
@@ -211,7 +210,7 @@ class OCRModel(object):
         # clipnorm seems to speeds up convergence
         sgd = SGD(lr=0.02, decay=1e-6, momentum=0.9, nesterov=True, clipnorm=5)
 
-        self._predict_model = Model(inputs=input_data, outputs=y_pred).summary()
+        self._predict_model = Model(inputs=input_data, outputs=y_pred)
         self._train_model = Model(inputs=[input_data, labels, input_length, label_length], outputs=loss_out)
         # the loss calc occurs elsewhere, so use a dummy lambda func for the loss
         self._train_model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer=sgd)
@@ -235,11 +234,11 @@ class OCRModel(object):
                                         callbacks=[checkpoint_saver, training_cb],
                                         initial_epoch=start_epoch)
 
-    def predict(self, images):
+    def predict(self, images, size):
         texts = []
-        labels = self._predict_model.predict(images, batch_size=len(images))
+        labels = self._predict_model.predict([images], batch_size=size)
         for label in labels:
-            texts.append(label_to_text(label, self.alphabet))
+            texts.append(greedy_decode(label, self.alphabet))
         return texts
 
     def load_config_for_predict_model(self, config_file):

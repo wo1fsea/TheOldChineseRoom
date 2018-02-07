@@ -131,10 +131,32 @@ def split_text_image(image, max_ratio=128 / 16):
     return images
 
 
-def convert_image_to_input_data(image):
+def convert_image_to_input_data(image, image_width, image_height):
     image = image.convert(mode="L")
-    image_data = np.asarray(image, dtype=np.uint8)
+    image_tmp = Image.new(mode="L", size=(image_width, image_height))
+
+    bbox = image.getbbox()
+    image = image.crop(bbox)
+
+    if bbox:
+        x, y, x2, y2 = bbox
+        w, h = x2 - x, y2 - y
+        x, y = (0, 0)
+
+        if w / h > image_width / image_height:
+            h = round(h / w * image_width)
+            w = round(image_width)
+
+        else:
+            w = round(w / h * image_height)
+            h = round(image_height)
+
+        image = image.resize((w, h))
+        image_tmp.paste(image, box=(x, y, x + w, y + h))
+
+    image_data = np.asarray(image_tmp, dtype=np.uint8)
     image_data = image_data.T
+    image_data = image_data.astype(np.float32) / 255
 
     if K.image_data_format() == 'channels_first':
         image_data = np.expand_dims(image_data, 0)
@@ -142,13 +164,12 @@ def convert_image_to_input_data(image):
         image_data = np.expand_dims(image_data, 2)
     return image_data
 
-
 def convert_input_data_to_image(image_data):
     pass
 
 
-img = Image.open("/Users/huangquanyong/Desktop/screenshot.png")
-imgs = split_text_image(img)
-for line in imgs:
-    for img in line:
-        img.show()
+# img = Image.open("/Users/huangquanyong/Desktop/screenshot.png")
+# imgs = split_text_image(img)
+# for line in imgs:
+#     for img in line:
+#         img.show()
