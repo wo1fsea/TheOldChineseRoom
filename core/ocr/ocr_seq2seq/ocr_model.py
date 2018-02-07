@@ -235,8 +235,12 @@ class OCRModel(object):
                                         callbacks=[checkpoint_saver, training_cb],
                                         initial_epoch=start_epoch)
 
-    def predict(self, image):
-        pass
+    def predict(self, images):
+        texts = []
+        labels = self._predict_model.predict(images, batch_size=len(images))
+        for label in labels:
+            texts.append(label_to_text(label, self.alphabet))
+        return texts
 
     def load_config_for_predict_model(self, config_file):
         self._predict_model.load_weights(config_file)
