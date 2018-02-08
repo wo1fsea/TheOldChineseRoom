@@ -47,6 +47,8 @@ def _find_peeks(data, min_val=0, min_range=4):
                 if i - start >= min_range:
                     peeks.append((start, i))
                     start = None
+    if start is not None:
+        peeks.append((start, len(data)-1))
 
     return peeks
 
