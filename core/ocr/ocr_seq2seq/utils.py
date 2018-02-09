@@ -21,18 +21,13 @@ def text_to_label(text, alphabet):
 
 
 def label_to_text(labels, alphabet):
-    if isinstance(alphabet, str):
-        alphabet = list(alphabet)
-        alphabet.append("")
-
     return "".join([alphabet[c] for c in labels])
 
 
-def greedy_decode(y_pred, alphabet):
-    best = tuple(np.argmax(y_pred, 1))
-    best = [k for k, g in itertools.groupby(best)]
-    string = label_to_text(best, alphabet)
-    return string
+def ctc_decode(y_preds, greedy=True, beam_width=16):
+    labels, probs = K.ctc_decode(y_preds, np.ones((y_preds.shape[0],)) * y_preds.shape[1], greedy, beam_width)
+    labels = K.eval(labels[0])
+    return labels
 
 
 def _find_peeks(data, min_val=0, min_range=4):
@@ -48,7 +43,7 @@ def _find_peeks(data, min_val=0, min_range=4):
                     peeks.append((start, i))
                     start = None
     if start is not None:
-        peeks.append((start, len(data)-1))
+        peeks.append((start, len(data) - 1))
 
     return peeks
 
@@ -166,9 +161,9 @@ def convert_image_to_input_data(image, image_width, image_height):
         image_data = np.expand_dims(image_data, 2)
     return image_data
 
+
 def convert_input_data_to_image(image_data):
     pass
-
 
 # img = Image.open("/Users/huangquanyong/Desktop/screenshot.png")
 # imgs = split_text_image(img)

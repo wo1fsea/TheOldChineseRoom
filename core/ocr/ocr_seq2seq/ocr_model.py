@@ -26,8 +26,8 @@ from keras.preprocessing import image
 import keras.callbacks
 
 from .data_generator import DataGenerator
-from .alphabet import ALPHABET_KEYBOARD
-from .utils import label_to_text, greedy_decode
+from .alphabet import ALPHABET_NUM as ALPHABET
+from .utils import label_to_text, ctc_decode
 
 CNN_FILTER_NUM = 16
 KERNEL_SIZE = (4, 4)
@@ -38,9 +38,6 @@ MINIBATCH_SIZE = 256
 
 FONT_SET = ("arial.ttf", "times.ttf", "LSANS.TTF")
 
-
-# the actual loss calc occurs here despite it not being
-# an internal Keras loss function
 
 def ctc_lambda_func(args):
     y_pred, labels, input_length, label_length = args
@@ -65,7 +62,8 @@ class TrainingCallback(keras.callbacks.Callback):
         while num_left > 0:
             word_batch = next(self.test_data_gen)[0]
             num_proc = min(word_batch['image_input'].shape[0], num_left)
-            decoded_res = decode_batch(self.test_func, word_batch['image_input'][0:num_proc])
+            y_preds = self.test_func([word_batch['image_input'][0:num_proc]])[0]
+            decoded_res = [label_to_text(label, ALPHABET) for label in ctc_decode(y_preds)]
             for j in range(num_proc):
                 edit_dist = editdistance.eval(decoded_res[j], word_batch['source_str'][j])
                 mean_ed += float(edit_dist)
@@ -79,7 +77,8 @@ class TrainingCallback(keras.callbacks.Callback):
     def _visual_test(self, epoch):
         self.show_edit_distance(256)
         word_batch = next(self.test_data_gen)[0]
-        res = decode_batch(self.test_func, word_batch['image_input'][0:self.num_display_words])
+        y_preds = self.test_func([word_batch['image_input'][0:self.num_display_words]])[0]
+        res = [label_to_text(label, ALPHABET) for label in ctc_decode(y_preds)]
         if word_batch['image_input'][0].shape[0] < 256:
             cols = 2
         else:
@@ -101,16 +100,13 @@ class TrainingCallback(keras.callbacks.Callback):
         self._visual_test(epoch)
 
 
-# For a real OCR application, this should be beam search with a dictionary
-# and language model.  For this example, best path is sufficient.
-
 def decode_batch(test_func, word_batch):
     out = test_func([word_batch])[0]
     ret = []
     for j in range(out.shape[0]):
         out_best = list(np.argmax(out[j], 1))
         out_best = [k for k, g in itertools.groupby(out_best)]
-        outstr = label_to_text(out_best, ALPHABET_KEYBOARD)
+        outstr = label_to_text(out_best, ALPHABET)
         ret.append(outstr)
     return ret
 
@@ -145,8 +141,9 @@ class OCRModel(object):
         self.image_width = image_width
         self.image_height = image_height
         self.output_length = round(image_width // POOL_SIZE ** 2)
-        self.alphabet = ALPHABET_KEYBOARD
-        self.data_generator = DataGenerator(self.image_width, self.image_height, self.output_length, minibatch_size=MINIBATCH_SIZE,
+        self.alphabet = ALPHABET
+        self.data_generator = DataGenerator(self.image_width, self.image_height, self.output_length,
+                                            minibatch_size=MINIBATCH_SIZE,
                                             font_set=FONT_SET, alphabet=self.alphabet)
 
         self._init_model()
@@ -196,7 +193,8 @@ class OCRModel(object):
             code)
 
         # transforms RNN output to character activations:
-        attention = Dense(len(self.alphabet), kernel_initializer='he_normal', name='dense2')(concatenate([gru_1, gru_1b]))
+        attention = Dense(len(self.alphabet), kernel_initializer='he_normal', name='dense2')(
+            concatenate([gru_1, gru_1b]))
         # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
         y_pred = Activation('softmax', name='softmax')(attention)
 
@@ -236,12 +234,10 @@ class OCRModel(object):
 
     def predict(self, images, size):
         texts = []
-        labels = self._predict_model.predict([images], batch_size=size)
-        l, g = K.ctc_decode(labels, np.ones((labels.shape[0],)) * self.output_length, greedy=False)
-        for label in K.eval(l[0]):
-            print(label_to_text(label, self.alphabet))
+        y_preds = self._predict_model.predict([images], batch_size=size)
+        labels = ctc_decode(y_preds)
         for label in labels:
-            texts.append(greedy_decode(label, self.alphabet))
+            texts.append(label_to_text(label, self.alphabet))
         return texts
 
     def load_config_for_predict_model(self, config_file):
