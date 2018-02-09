@@ -26,7 +26,7 @@ from keras.preprocessing import image
 import keras.callbacks
 
 from .data_generator import DataGenerator
-from .alphabet import ALPHABET_NUM
+from .alphabet import ALPHABET_KEYBOARD
 from .utils import label_to_text, greedy_decode
 
 CNN_FILTER_NUM = 16
@@ -36,7 +36,7 @@ RNN_DENSE_SIZE = 32
 RNN_SIZE = 128
 MINIBATCH_SIZE = 256
 
-FONT = "arial.ttf"
+FONT_SET = ("arial.ttf", "times.ttf", "LSANS.TTF")
 
 
 # the actual loss calc occurs here despite it not being
@@ -110,7 +110,7 @@ def decode_batch(test_func, word_batch):
     for j in range(out.shape[0]):
         out_best = list(np.argmax(out[j], 1))
         out_best = [k for k, g in itertools.groupby(out_best)]
-        outstr = label_to_text(out_best, ALPHABET_NUM)
+        outstr = label_to_text(out_best, ALPHABET_KEYBOARD)
         ret.append(outstr)
     return ret
 
@@ -145,9 +145,9 @@ class OCRModel(object):
         self.image_width = image_width
         self.image_height = image_height
         self.output_length = round(image_width // POOL_SIZE ** 2)
-        self.alphabet = ALPHABET_NUM
+        self.alphabet = ALPHABET_KEYBOARD
         self.data_generator = DataGenerator(self.image_width, self.image_height, self.output_length, minibatch_size=MINIBATCH_SIZE,
-                                            font_set=(FONT,), alphabet=ALPHABET_NUM)
+                                            font_set=FONT_SET, alphabet=self.alphabet)
 
         self._init_model()
 
@@ -196,7 +196,7 @@ class OCRModel(object):
             code)
 
         # transforms RNN output to character activations:
-        attention = Dense(len(self.alphabet), kernel_initializer='he_normal', name='dense2')(concatenate([gru_2, gru_2b]))
+        attention = Dense(len(self.alphabet), kernel_initializer='he_normal', name='dense2')(concatenate([gru_1, gru_1b]))
         # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
         y_pred = Activation('softmax', name='softmax')(attention)
 
@@ -237,6 +237,9 @@ class OCRModel(object):
     def predict(self, images, size):
         texts = []
         labels = self._predict_model.predict([images], batch_size=size)
+        l, g = K.ctc_decode(labels, np.ones((labels.shape[0],)) * self.output_length, greedy=False)
+        for label in K.eval(l[0]):
+            print(label_to_text(label, self.alphabet))
         for label in labels:
             texts.append(greedy_decode(label, self.alphabet))
         return texts
