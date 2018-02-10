@@ -28,11 +28,7 @@ for line in imgs:
         img.show()
 
 size = len(input_data)
-
-if K.image_data_format() == 'channels_first':
-    input = np.ones([size, 1, 128, 16])
-else:
-    input = np.ones([size, 128, 16, 1])
+input = np.ones([size, *(input_data[0].shape)])
 
 for i, data in enumerate(input_data):
     input[i] = data
@@ -40,4 +36,4 @@ for i, data in enumerate(input_data):
 print(ocr_m.predict(input, size))
 
 # train
-# ocr_m.train(23, 1000)
+ocr_m.train(25, 1000)

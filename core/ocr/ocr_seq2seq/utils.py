@@ -9,7 +9,6 @@ Description:
     utils.py
 ----------------------------------------------------------------------------"""
 
-import itertools
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from keras import backend as K
@@ -151,22 +150,40 @@ def convert_image_to_input_data(image, image_width, image_height):
         image = image.resize((w, h))
         image_tmp.paste(image, box=(x, y, x + w, y + h))
 
-    image_data = np.asarray(image_tmp, dtype=np.uint8)
-    image_data = image_data.T
-    image_data = image_data.astype(np.float32) / 255
+    image_array = np.asarray(image_tmp, dtype=np.uint8)
+    input_data = convert_image_array_to_input_data(image_array)
+
+    return input_data
+
+
+def convert_input_data_to_image(input_data):
+    image_array = convert_input_data_to_image_array(input_data)
+    return Image.fromarray(image_array, "L")
+
+
+def convert_input_data_to_image_array(input_data):
+    if K.image_data_format() == 'channels_first':
+        temp_data = input_data[0, :, :]
+    else:
+        temp_data = input_data[:, :, 0]
+
+    return temp_data.T * 255
+
+
+def convert_image_array_to_input_data(image_array):
+    temp_data = image_array.T
+    temp_data = temp_data.astype(np.float32) / 255
 
     if K.image_data_format() == 'channels_first':
-        image_data = np.expand_dims(image_data, 0)
+        temp_data = np.expand_dims(temp_data, 0)
     else:
-        image_data = np.expand_dims(image_data, 2)
-    return image_data
+        temp_data = np.expand_dims(temp_data, 2)
+
+    return temp_data
 
 
-def convert_input_data_to_image(image_data):
-    pass
-
-# img = Image.open("/Users/huangquanyong/Desktop/screenshot.png")
-# imgs = split_text_image(img)
-# for line in imgs:
-#     for img in line:
-#         img.show()
+def get_input_data_shape(image_width, image_height, channel=1):
+    if K.image_data_format() == 'channels_first':
+        return channel, image_width, image_height
+    else:
+        return image_width, image_height, channel

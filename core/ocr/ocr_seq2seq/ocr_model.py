@@ -9,25 +9,21 @@ Description:
     ocr_model.py
 ----------------------------------------------------------------------------"""
 import os
-import itertools
 import editdistance
-import numpy as np
 import pylab
 from keras import backend as K
 from keras.layers.convolutional import Conv2D, MaxPooling2D
 from keras.layers import Input, Dense, Activation, Permute
 from keras.layers import Reshape, Lambda
-from keras.layers.merge import add, concatenate, multiply
+from keras.layers.merge import concatenate, multiply
 from keras.models import Model
-from keras.layers.recurrent import GRU
+from keras.layers.recurrent import GRU, LSTM
 from keras.optimizers import SGD
-from keras.utils.data_utils import get_file
-from keras.preprocessing import image
 import keras.callbacks
 
 from .data_generator import DataGenerator
 from .alphabet import ALPHABET_NUM as ALPHABET
-from .utils import label_to_text, ctc_decode
+from .utils import label_to_text, ctc_decode, convert_input_data_to_image_array, get_input_data_shape
 
 CNN_FILTER_NUM = 16
 KERNEL_SIZE = (4, 4)
@@ -86,11 +82,7 @@ class TrainingCallback(keras.callbacks.Callback):
             cols = 1
         for i in range(self.num_display_words):
             pylab.subplot(self.num_display_words // cols, cols, i + 1)
-            if K.image_data_format() == 'channels_first':
-                the_input = word_batch['image_input'][i, 0, :, :]
-            else:
-                the_input = word_batch['image_input'][i, :, :, 0]
-            pylab.imshow(the_input.T, cmap='Greys_r')
+            pylab.imshow(convert_input_data_to_image_array(word_batch['image_input'][i]), cmap='gray')
             pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
         fig = pylab.gcf()
         fig.set_size_inches(16, 32)
@@ -128,29 +120,24 @@ class OCRModel(object):
         self._predict_model = None
         self._test_func = None
 
-        self.image_width = image_width
-        self.image_height = image_height
-        self.output_length = round(image_width // POOL_SIZE ** 2)
-        self.alphabet = alphabet
-        self.font_set = font_set
-        self.minibatch_size = minibatch_size
-        self.data_generator = DataGenerator(self.image_width, self.image_height, self.output_length,
-                                            minibatch_size=self.minibatch_size,
-                                            font_set=self.font_set, alphabet=self.alphabet)
+        self._image_width = image_width
+        self._image_height = image_height
+        self._output_length = round(image_width // POOL_SIZE ** 2)
+        self._alphabet = alphabet
+        self._font_set = font_set
+        self._minibatch_size = minibatch_size
+        self.data_generator = DataGenerator(image_width=self._image_width, image_height=self._image_height,
+                                            output_length=self._output_length,
+                                            minibatch_size=self._minibatch_size,
+                                            font_set=self._font_set,
+                                            alphabet=self._alphabet)
 
         self._init_model()
 
-    def _get_input_size(self):
-        if K.image_data_format() == 'channels_first':
-            input_shape = (1, self.image_width, self.image_height)
-        else:
-            input_shape = (self.image_width, self.image_height, 1)
-
-        return input_shape
-
     def _init_model(self):
         act = 'relu'
-        input_data = Input(name='image_input', shape=self._get_input_size(), dtype='float32')
+        input_data_shape = get_input_data_shape(self._image_width, self._image_height, 1)
+        input_data = Input(name='image_input', shape=input_data_shape, dtype='float32')
         inner = Conv2D(CNN_FILTER_NUM, KERNEL_SIZE, padding='same',
                        activation=act, kernel_initializer='he_normal',
                        name='conv1')(input_data)
@@ -161,7 +148,7 @@ class OCRModel(object):
         inner = MaxPooling2D(pool_size=(POOL_SIZE, POOL_SIZE), name='max2')(inner)
 
         conv_to_rnn_dims = (
-            self.image_width // (POOL_SIZE ** 2), (self.image_height // (POOL_SIZE ** 2)) * CNN_FILTER_NUM)
+            self._image_width // (POOL_SIZE ** 2), (self._image_height // (POOL_SIZE ** 2)) * CNN_FILTER_NUM)
         inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
 
         # cuts down input size going into RNN:
@@ -175,7 +162,7 @@ class OCRModel(object):
 
         code = concatenate([gru_1, gru_1b])
         inner = Permute((2, 1))(code)
-        inner = Dense(self.output_length, activation='softmax')(inner)
+        inner = Dense(self._output_length, activation='softmax')(inner)
         attention = Permute((2, 1), name='attention_vec')(inner)
         code = multiply([code, attention], name='attention_mul')
 
@@ -185,7 +172,7 @@ class OCRModel(object):
             code)
 
         # transforms RNN output to character activations:
-        attention = Dense(len(self.alphabet), kernel_initializer='he_normal', name='dense2')(
+        attention = Dense(len(self._alphabet), kernel_initializer='he_normal', name='dense2')(
             concatenate([gru_1, gru_1b]))
         # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
         y_pred = Activation('softmax', name='softmax')(attention)
@@ -213,7 +200,7 @@ class OCRModel(object):
         if start_epoch > 0:
             checkpoint_saver.load_checkpoint(self._train_model, start_epoch - 1)
 
-        training_cb = TrainingCallback(self._test_func, self.data_generator.get_validate_data(), self.alphabet)
+        training_cb = TrainingCallback(self._test_func, self.data_generator.get_validate_data(), self._alphabet)
 
         self._train_model.fit_generator(generator=self.data_generator.get_train_data(),
                                         steps_per_epoch=256,
@@ -223,12 +210,12 @@ class OCRModel(object):
                                         callbacks=[checkpoint_saver, training_cb],
                                         initial_epoch=start_epoch)
 
-    def predict(self, images, size):
+    def predict(self, input_data_batch):
         texts = []
-        y_preds = self._predict_model.predict([images], batch_size=size)
+        y_preds = self._predict_model.predict([input_data_batch], batch_size=input_data_batch.shape[0])
         labels = ctc_decode(y_preds)
         for label in labels:
-            texts.append(label_to_text(label, self.alphabet))
+            texts.append(label_to_text(label, self._alphabet))
         return texts
 
     def load_config_for_predict_model(self, config_file):

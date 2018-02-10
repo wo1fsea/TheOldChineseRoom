@@ -9,9 +9,8 @@ Description:
     data_generator.py
 ----------------------------------------------------------------------------"""
 import numpy as np
-from keras import backend as K
 from .image_generator import ImageGenerator
-from .utils import text_to_label
+from .utils import text_to_label, convert_image_array_to_input_data, get_input_data_shape
 
 
 class DataGenerator(object):
@@ -34,16 +33,13 @@ class DataGenerator(object):
             char.append(c)
         return "".join(char)
 
-    def _get_image(self, text):
+    def _get_input_data(self, text):
         image = self.image_generator.generate(text, rotation=True, translate=True, noise=True)
-        image = image.astype(np.float32) / 255
-        return image
+        return convert_image_array_to_input_data(image)
 
     def _get_batch_date(self):
-        if K.image_data_format() == 'channels_first':
-            X_data = np.ones([self._minibatch_size, 1, self._image_width, self._image_height])
-        else:
-            X_data = np.ones([self._minibatch_size, self._image_width, self._image_height, 1])
+        input_data_shape = get_input_data_shape(self._image_width, self._image_height, 1)
+        X_data = np.ones([self._minibatch_size, *input_data_shape])
 
         label = np.ones([self._minibatch_size, 8])
         output_length = np.zeros([self._minibatch_size, 1])
@@ -54,12 +50,7 @@ class DataGenerator(object):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
             text = self._get_random_string()
-            image = self._get_image(text)
-
-            if K.image_data_format() == 'channels_first':
-                X_data[i, 0, 0:self._image_width, :] = image[0, :, :].T
-            else:
-                X_data[i, 0:self._image_width, :, 0] = image[0, :, :].T
+            X_data[i] = self._get_input_data(text)
 
             t_label = text_to_label(text, self._alphabet)
             label[i, 0:len(t_label)] = t_label
@@ -75,7 +66,7 @@ class DataGenerator(object):
             'source_str': source_str,
         }
         outputs = {'ctc': np.zeros([self._minibatch_size])}  # dummy data for dummy loss function
-        return (inputs, outputs)
+        return inputs, outputs
 
     def get_validate_data(self):
         while 1:

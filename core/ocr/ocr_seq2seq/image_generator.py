@@ -88,6 +88,4 @@ class ImageGenerator(object):
         if noise:
             image_array = self.add_noise(image_array)
 
-        image_array = np.expand_dims(image_array, 0)
-
         return image_array

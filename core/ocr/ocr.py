@@ -25,5 +25,8 @@ class OCR(object):
         if implement == "naive":
             from .ocr_naive import OCRNaive
             return OCRNaive()
+        if implement == "seq2seq":
+            from .ocr_seq2seq import OCRSeq2Seq
+            return OCRSeq2Seq()
         else:
             raise NotImplementedError
