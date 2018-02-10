@@ -17,8 +17,8 @@ from core.ocr.ocr_seq2seq.utils import split_text_image, convert_image_to_input_
 ocr_m = OCRModel(128, 16)
 
 # predict
-ocr_m.load_config_for_predict_model(r"D:\GITHUB\TheChineseRoom\ocr_model\checkpoint_21")
-img = Image.open("C:/Users/wo1fsea/Desktop/ScreenClip1.png")
+ocr_m.load_config_for_predict_model(r"D:\GITHUB\TheChineseRoom\ocr_model\checkpoint_27")
+img = Image.open("C:/Users/wo1fsea/Desktop/ScreenClip.png")
 
 imgs = split_text_image(img, 128/16)
 input_data = []
@@ -40,4 +40,4 @@ for i, data in enumerate(input_data):
 print(ocr_m.predict(input, size))
 
 # train
-# ocr_m.train(0, 100)
+# ocr_m.train(23, 1000)

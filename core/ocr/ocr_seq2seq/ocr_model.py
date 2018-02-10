@@ -46,11 +46,12 @@ def ctc_lambda_func(args):
 
 class TrainingCallback(keras.callbacks.Callback):
 
-    def __init__(self, test_func, test_data_gen, output_path="ocr_model", num_display_words=16):
+    def __init__(self, test_func, test_data_gen, alphabet, output_path="ocr_model", num_display_words=16):
         super(TrainingCallback, self).__init__()
         self.test_func = test_func
-        self.output_path = output_path
         self.test_data_gen = test_data_gen
+        self.alphabet = alphabet
+        self.output_path = output_path
         self.num_display_words = num_display_words
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
@@ -63,7 +64,7 @@ class TrainingCallback(keras.callbacks.Callback):
             word_batch = next(self.test_data_gen)[0]
             num_proc = min(word_batch['image_input'].shape[0], num_left)
             y_preds = self.test_func([word_batch['image_input'][0:num_proc]])[0]
-            decoded_res = [label_to_text(label, ALPHABET) for label in ctc_decode(y_preds)]
+            decoded_res = [label_to_text(label, self.alphabet) for label in ctc_decode(y_preds)]
             for j in range(num_proc):
                 edit_dist = editdistance.eval(decoded_res[j], word_batch['source_str'][j])
                 mean_ed += float(edit_dist)
@@ -78,7 +79,7 @@ class TrainingCallback(keras.callbacks.Callback):
         self.show_edit_distance(256)
         word_batch = next(self.test_data_gen)[0]
         y_preds = self.test_func([word_batch['image_input'][0:self.num_display_words]])[0]
-        res = [label_to_text(label, ALPHABET) for label in ctc_decode(y_preds)]
+        res = [label_to_text(label, self.alphabet) for label in ctc_decode(y_preds)]
         if word_batch['image_input'][0].shape[0] < 256:
             cols = 2
         else:
@@ -98,17 +99,6 @@ class TrainingCallback(keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         self._visual_test(epoch)
-
-
-def decode_batch(test_func, word_batch):
-    out = test_func([word_batch])[0]
-    ret = []
-    for j in range(out.shape[0]):
-        out_best = list(np.argmax(out[j], 1))
-        out_best = [k for k, g in itertools.groupby(out_best)]
-        outstr = label_to_text(out_best, ALPHABET)
-        ret.append(outstr)
-    return ret
 
 
 class CheckpointSaver(keras.callbacks.Callback):
@@ -133,7 +123,7 @@ class CheckpointSaver(keras.callbacks.Callback):
 
 class OCRModel(object):
 
-    def __init__(self, image_width, image_height):
+    def __init__(self, image_width, image_height, alphabet=ALPHABET, font_set=FONT_SET, minibatch_size=MINIBATCH_SIZE):
         self._train_model = None
         self._predict_model = None
         self._test_func = None
@@ -141,10 +131,12 @@ class OCRModel(object):
         self.image_width = image_width
         self.image_height = image_height
         self.output_length = round(image_width // POOL_SIZE ** 2)
-        self.alphabet = ALPHABET
+        self.alphabet = alphabet
+        self.font_set = font_set
+        self.minibatch_size = minibatch_size
         self.data_generator = DataGenerator(self.image_width, self.image_height, self.output_length,
-                                            minibatch_size=MINIBATCH_SIZE,
-                                            font_set=FONT_SET, alphabet=self.alphabet)
+                                            minibatch_size=self.minibatch_size,
+                                            font_set=self.font_set, alphabet=self.alphabet)
 
         self._init_model()
 
@@ -221,8 +213,7 @@ class OCRModel(object):
         if start_epoch > 0:
             checkpoint_saver.load_checkpoint(self._train_model, start_epoch - 1)
 
-        # captures output of softmax so we can decode the output during visualization
-        training_cb = TrainingCallback(self._test_func, self.data_generator.get_validate_data())
+        training_cb = TrainingCallback(self._test_func, self.data_generator.get_validate_data(), self.alphabet)
 
         self._train_model.fit_generator(generator=self.data_generator.get_train_data(),
                                         steps_per_epoch=256,

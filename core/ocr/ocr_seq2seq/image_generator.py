@@ -18,13 +18,12 @@ import random
 from keras import backend as K
 
 FONT_SIZE = 32
-FONT = "arial.ttf"
-ROTATION_DEGREE = 10
+ROTATION_DEGREE = 5
 
 
 class ImageGenerator(object):
 
-    def __init__(self, width, height, font_set=(FONT,)):
+    def __init__(self, width, height, font_set):
         super(ImageGenerator, self).__init__()
         self.width = width
         self.height = height
@@ -88,10 +87,6 @@ class ImageGenerator(object):
 
         if noise:
             image_array = self.add_noise(image_array)
-
-        # 4 debug
-        # image = Image.fromarray(image_array, mode="L")
-        # image.save("a.png")
 
         image_array = np.expand_dims(image_array, 0)
 
