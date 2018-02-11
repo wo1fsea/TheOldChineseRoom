@@ -21,8 +21,8 @@ from keras.layers.recurrent import GRU, LSTM
 from keras.optimizers import SGD
 import keras.callbacks
 
-from .data_generator import DataGenerator
-from .alphabet import ALPHABET_NUM as ALPHABET
+from .data_generator import DataGenerator, MAX_STRING_LEN
+from .alphabet import ALPHABET_KEYBOARD as ALPHABET
 from .utils import label_to_text, ctc_decode, convert_input_data_to_image_array, get_input_data_shape
 
 CNN_FILTER_NUM = 16
@@ -76,12 +76,8 @@ class TrainingCallback(keras.callbacks.Callback):
         word_batch = next(self.test_data_gen)[0]
         y_preds = self.test_func([word_batch['image_input'][0:self.num_display_words]])[0]
         res = [label_to_text(label, self.alphabet) for label in ctc_decode(y_preds)]
-        if word_batch['image_input'][0].shape[0] < 256:
-            cols = 2
-        else:
-            cols = 1
         for i in range(self.num_display_words):
-            pylab.subplot(self.num_display_words // cols, cols, i + 1)
+            pylab.subplot(self.num_display_words // 2, 2, i + 1)
             pylab.imshow(convert_input_data_to_image_array(word_batch['image_input'][i]), cmap='gray')
             pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
         fig = pylab.gcf()
@@ -134,6 +130,70 @@ class OCRModel(object):
 
         self._init_model()
 
+    def _init_attention_model(self):
+        act = 'relu'
+        input_data_shape = get_input_data_shape(self._image_width, self._image_height, 1)
+        input_data = Input(name='image_input', shape=input_data_shape, dtype='float32')
+
+        # CNN1
+        inner = Conv2D(CNN_FILTER_NUM, KERNEL_SIZE, padding='same',
+                       activation=act, kernel_initializer='he_normal',
+                       name='conv1')(input_data)
+        inner = MaxPooling2D(pool_size=(POOL_SIZE, POOL_SIZE), name='max1')(inner)
+
+        # CNN2
+        inner = Conv2D(CNN_FILTER_NUM, KERNEL_SIZE, padding='same',
+                       activation=act, kernel_initializer='he_normal',
+                       name='conv2')(inner)
+        inner = MaxPooling2D(pool_size=(POOL_SIZE, POOL_SIZE), name='max2')(inner)
+
+
+        conv_to_rnn_dims = (
+            self._image_width // (POOL_SIZE ** 2), (self._image_height // (POOL_SIZE ** 2)) * CNN_FILTER_NUM)
+        inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
+
+        # cuts down input size going into RNN:
+        inner = Dense(RNN_DENSE_SIZE, activation=act, name='dense1')(inner)
+
+        # Two layers of bidirectional GRUs
+        # GRU seems to work as well, if not better than LSTM:
+        gru_1 = GRU(RNN_SIZE, return_sequences=True, kernel_initializer='he_normal', name='gru1')(inner)
+        gru_1b = GRU(RNN_SIZE, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(
+            inner)
+
+        code = concatenate([gru_1, gru_1b])
+        inner = Permute((2, 1))(code)
+        inner = Dense(self._output_length, activation='softmax')(inner)
+        attention = Permute((2, 1), name='attention_vec')(inner)
+        code = multiply([code, attention], name='attention_mul')
+
+        # gru1_merged = add([gru_1, gru_1b])
+        gru_2 = GRU(RNN_SIZE, return_sequences=True, kernel_initializer='he_normal', name='gru2')(code)
+        gru_2b = GRU(RNN_SIZE, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru2_b')(
+            code)
+
+        # transforms RNN output to character activations:
+        attention = Dense(len(self._alphabet), kernel_initializer='he_normal', name='dense2')(concatenate([gru_2, gru_2b]))
+        # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
+        y_pred = Activation('softmax', name='softmax')(attention)
+
+        labels = Input(name='label', shape=[MAX_STRING_LEN], dtype='float32')
+        input_length = Input(name='output_length', shape=[1], dtype='int64')
+        label_length = Input(name='label_length', shape=[1], dtype='int64')
+        # Keras doesn't currently support loss funcs with extra parameters
+        # so CTC loss is implemented in a lambda layer
+        loss_out = Lambda(ctc_lambda_func, output_shape=(1,), name='ctc')([y_pred, labels, input_length, label_length])
+
+        # clipnorm seems to speeds up convergence
+        sgd = SGD(lr=0.02, decay=1e-6, momentum=0.9, nesterov=True, clipnorm=5)
+
+        self._predict_model = Model(inputs=input_data, outputs=y_pred)
+        self._train_model = Model(inputs=[input_data, labels, input_length, label_length], outputs=loss_out)
+        # the loss calc occurs elsewhere, so use a dummy lambda func for the loss
+        self._train_model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer=sgd)
+        self._train_model.summary()
+        self._test_func = K.function([input_data], [y_pred])
+
     def _init_model(self):
         act = 'relu'
         input_data_shape = get_input_data_shape(self._image_width, self._image_height, 1)
@@ -177,7 +237,7 @@ class OCRModel(object):
         # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
         y_pred = Activation('softmax', name='softmax')(attention)
 
-        labels = Input(name='label', shape=[8], dtype='float32')
+        labels = Input(name='label', shape=[MAX_STRING_LEN], dtype='float32')
         input_length = Input(name='output_length', shape=[1], dtype='int64')
         label_length = Input(name='label_length', shape=[1], dtype='int64')
         # Keras doesn't currently support loss funcs with extra parameters

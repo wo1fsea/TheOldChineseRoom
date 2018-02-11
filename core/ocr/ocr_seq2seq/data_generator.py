@@ -12,6 +12,7 @@ import numpy as np
 from .image_generator import ImageGenerator
 from .utils import text_to_label, convert_image_array_to_input_data, get_input_data_shape
 
+MAX_STRING_LEN = 12
 
 class DataGenerator(object):
     def __init__(self, image_width, image_height, output_length, minibatch_size, font_set, alphabet, word_list=[]):
@@ -25,7 +26,7 @@ class DataGenerator(object):
 
     def _get_random_string(self):
         char = []
-        length = np.random.randint(1, 8)
+        length = np.random.randint(1, MAX_STRING_LEN)
         for i in range(length):
             c = ""
             while not c:
@@ -41,7 +42,7 @@ class DataGenerator(object):
         input_data_shape = get_input_data_shape(self._image_width, self._image_height, 1)
         X_data = np.ones([self._minibatch_size, *input_data_shape])
 
-        label = np.ones([self._minibatch_size, 8])
+        label = np.ones([self._minibatch_size, MAX_STRING_LEN])
         output_length = np.zeros([self._minibatch_size, 1])
         label_length = np.zeros([self._minibatch_size, 1])
 

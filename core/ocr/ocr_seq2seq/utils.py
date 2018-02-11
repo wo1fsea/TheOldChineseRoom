@@ -129,7 +129,7 @@ def split_text_image(image, max_ratio=128 / 16):
 
 def convert_image_to_input_data(image, image_width, image_height):
     image = image.convert(mode="L")
-    image_tmp = Image.new(mode="L", size=(image_width, image_height))
+    image_tmp = Image.new(mode="L", size=(image_width, image_height), color=255)
 
     bbox = image.getbbox()
     image = image.crop(bbox)

@@ -41,10 +41,11 @@ class ImageGenerator(object):
         noisy[noisy > 255] = 255
         return noisy.astype(np.uint8)
 
-    def generate(self, string, rotation=False, translate=False, noise=False):
+    def generate(self, string, background=True, rotation=False, translate=False, noise=False):
         """
 
         :param string:
+        :param background:
         :param rotation:
         :param translate:
         :param noise:
@@ -53,7 +54,7 @@ class ImageGenerator(object):
         font = np.random.choice(self.font_set)
         font_size = self.font_size
 
-        image = Image.new(mode="RGB", size=(self.width, self.height))
+        image = Image.new(mode="RGB", size=(self.width, self.height), color=0xFFFFFF if background else 0)
         image_tmp = Image.new(mode="RGB", size=(font_size * len(string), 2 * font_size))
         draw = ImageDraw.Draw(image_tmp)
         font = ImageFont.truetype(font, font_size)

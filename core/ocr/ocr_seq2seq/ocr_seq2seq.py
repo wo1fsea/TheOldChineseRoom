@@ -14,21 +14,18 @@ from ..ocr import OCR
 from .ocr_model import OCRModel
 from .utils import split_text_image, convert_image_to_input_data
 
-IMAGE_WIDTH = 128
-IMAGE_HEIGHT = 16
+IMAGE_WIDTH = 256
+IMAGE_HEIGHT = 32
 
 
 class OCRSeq2Seq(OCR):
-    MIN_SIZE = 256.
 
     def __init__(self):
         self._ocr_model = OCRModel(IMAGE_WIDTH, IMAGE_HEIGHT)
+        self._ocr_model.load_config_for_predict_model(r"D:\GITHUB\TheChineseRoom\ocr_model\checkpoint_4")
 
     def image_to_string(self, image):
-        self._ocr_model.load_config_for_predict_model(r"D:\GITHUB\TheChineseRoom\ocr_model\checkpoint_27")
-        img = Image.open("C:/Users/wo1fsea/Desktop/ScreenClip.png")
-
-        imgs = split_text_image(img, IMAGE_WIDTH / IMAGE_HEIGHT)
+        imgs = split_text_image(image, IMAGE_WIDTH / IMAGE_HEIGHT)
         input_data = []
         for line in imgs:
             for img in line:
