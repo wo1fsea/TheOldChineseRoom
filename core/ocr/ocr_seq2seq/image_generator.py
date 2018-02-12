@@ -18,17 +18,18 @@ import random
 from keras import backend as K
 
 FONT_SIZE = 32
+FONT_SIZE_RANGE = (8, 65)
 ROTATION_DEGREE = 5
 
 
 class ImageGenerator(object):
 
-    def __init__(self, width, height, font_set):
+    def __init__(self, width, height, font_set, font_size_range=FONT_SIZE_RANGE):
         super(ImageGenerator, self).__init__()
         self.width = width
         self.height = height
         self.font_set = font_set
-        self.font_size = FONT_SIZE
+        self.font_size_range = (8, 64)
 
     def add_noise(self, image):
         row, col = image.shape
@@ -52,7 +53,7 @@ class ImageGenerator(object):
         :return:
         """
         font = np.random.choice(self.font_set)
-        font_size = self.font_size
+        font_size = np.random.randint(self.font_size_range[0], self.font_size_range[1])
 
         image = Image.new(mode="RGB", size=(self.width, self.height), color=0xFFFFFF if background else 0)
         image_tmp = Image.new(mode="RGB", size=(font_size * len(string), 2 * font_size))
@@ -64,9 +65,11 @@ class ImageGenerator(object):
             image_tmp = image_tmp.rotate(ROTATION_DEGREE * (np.random.random() - 0.5) * 2, expand=True)
 
         bbox = image_tmp.getbbox()
-        image_tmp = image_tmp.crop(bbox)
 
         if bbox:
+            bbox = bbox[0] - 1, bbox[1] - 1, bbox[2] + 1, bbox[3] + 1
+            image_tmp = image_tmp.crop(bbox)
+
             x, y, x2, y2 = bbox
             w, h = x2 - x, y2 - y
 
@@ -79,7 +82,7 @@ class ImageGenerator(object):
                 h = round(self.height)
                 x, y = (round(np.random.random() * (self.width - w)), 0) if translate else (0, 0)
 
-            image_tmp = image_tmp.resize((w, h))
+            image_tmp = image_tmp.resize((w, h))  # , Image.LANCZOS)
 
             image.paste(image_tmp, box=(x, y, x + w, y + h))
 

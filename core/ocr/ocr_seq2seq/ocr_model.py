@@ -79,7 +79,9 @@ class TrainingCallback(keras.callbacks.Callback):
         for i in range(self.num_display_words):
             pylab.subplot(self.num_display_words // 2, 2, i + 1)
             pylab.imshow(convert_input_data_to_image_array(word_batch['image_input'][i]), cmap='gray')
-            pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
+            truth = word_batch['source_str'][i].replace("$", "\\$")
+            pred = res[i].replace("$", "\\$")
+            pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (truth, pred))
         fig = pylab.gcf()
         fig.set_size_inches(16, 32)
         pylab.savefig(os.path.join(self.output_path, 'e%02d.png' % (epoch)))
@@ -147,7 +149,6 @@ class OCRModel(object):
                        name='conv2')(inner)
         inner = MaxPooling2D(pool_size=(POOL_SIZE, POOL_SIZE), name='max2')(inner)
 
-
         conv_to_rnn_dims = (
             self._image_width // (POOL_SIZE ** 2), (self._image_height // (POOL_SIZE ** 2)) * CNN_FILTER_NUM)
         inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
@@ -173,7 +174,8 @@ class OCRModel(object):
             code)
 
         # transforms RNN output to character activations:
-        attention = Dense(len(self._alphabet), kernel_initializer='he_normal', name='dense2')(concatenate([gru_2, gru_2b]))
+        attention = Dense(len(self._alphabet), kernel_initializer='he_normal', name='dense2')(
+            concatenate([gru_2, gru_2b]))
         # gru_decoder = GRU(img_gen.get_output_size(), return_sequences=True, kernel_initializer='he_normal', name='gru_decoder')(attention)
         y_pred = Activation('softmax', name='softmax')(attention)
 

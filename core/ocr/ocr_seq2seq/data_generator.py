@@ -14,6 +14,7 @@ from .utils import text_to_label, convert_image_array_to_input_data, get_input_d
 
 MAX_STRING_LEN = 12
 
+
 class DataGenerator(object):
     def __init__(self, image_width, image_height, output_length, minibatch_size, font_set, alphabet, word_list=[]):
         self.image_generator = ImageGenerator(image_width, image_height, font_set)
@@ -34,6 +35,12 @@ class DataGenerator(object):
             char.append(c)
         return "".join(char)
 
+    def _get_random_string_avoid_spaces(self):
+        string = ""
+        while not (len(string) > 0 and any(map(lambda c: c != " ", string))):
+            string = self._get_random_string()
+        return string
+
     def _get_input_data(self, text):
         image = self.image_generator.generate(text, rotation=True, translate=True, noise=True)
         return convert_image_array_to_input_data(image)
@@ -50,7 +57,7 @@ class DataGenerator(object):
         for i in range(self._minibatch_size):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
-            text = self._get_random_string()
+            text = self._get_random_string_avoid_spaces()
             X_data[i] = self._get_input_data(text)
 
             t_label = text_to_label(text, self._alphabet)

@@ -22,7 +22,7 @@ class OCRSeq2Seq(OCR):
 
     def __init__(self):
         self._ocr_model = OCRModel(IMAGE_WIDTH, IMAGE_HEIGHT)
-        self._ocr_model.load_config_for_predict_model(r"E:\TheChineseRoom\ocr_model\checkpoint_91")
+        self._ocr_model.load_config_for_predict_model(r"D:\GITHUB\TheChineseRoom\ocr_model\checkpoint_106")
 
     def image_to_string(self, image):
         imgs = split_text_image(image, IMAGE_WIDTH / IMAGE_HEIGHT)

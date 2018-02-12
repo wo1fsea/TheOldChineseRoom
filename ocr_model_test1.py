@@ -38,4 +38,4 @@ ocr_m = OCRModel(W, H)
 # print(ocr_m.predict(input, size))
 
 # train
-ocr_m.train(0, 1000)
+ocr_m.train(106, 1000)
