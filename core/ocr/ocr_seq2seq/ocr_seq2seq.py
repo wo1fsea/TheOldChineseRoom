@@ -12,7 +12,7 @@ from PIL import Image
 import numpy as np
 from ..ocr import OCR
 from .ocr_model import OCRModel
-from .utils import split_text_image, convert_image_to_input_data
+from .utils import split_text_image, convert_image_to_input_data, convert_input_data_to_image
 
 IMAGE_WIDTH = 256
 IMAGE_HEIGHT = 32
@@ -22,7 +22,7 @@ class OCRSeq2Seq(OCR):
 
     def __init__(self):
         self._ocr_model = OCRModel(IMAGE_WIDTH, IMAGE_HEIGHT)
-        self._ocr_model.load_config_for_predict_model(r"D:\GITHUB\TheChineseRoom\ocr_model\checkpoint_4")
+        self._ocr_model.load_config_for_predict_model(r"E:\TheChineseRoom\ocr_model\checkpoint_91")
 
     def image_to_string(self, image):
         imgs = split_text_image(image, IMAGE_WIDTH / IMAGE_HEIGHT)
@@ -30,7 +30,7 @@ class OCRSeq2Seq(OCR):
         for line in imgs:
             for img in line:
                 input_data.append(convert_image_to_input_data(img, IMAGE_WIDTH, IMAGE_HEIGHT))
-                img.show()
+                convert_input_data_to_image(input_data[-1]).show()
 
         size = len(input_data)
         input = np.ones([size, *(input_data[0].shape)])
