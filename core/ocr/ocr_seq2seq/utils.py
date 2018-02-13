@@ -23,7 +23,7 @@ def label_to_text(labels, alphabet):
     return "".join([alphabet[c] for c in labels])
 
 
-def ctc_decode(y_preds, greedy=False, beam_width=128):
+def ctc_decode(y_preds, greedy=True, beam_width=128):
     labels, probs = K.ctc_decode(y_preds, np.ones((y_preds.shape[0],)) * y_preds.shape[1], greedy, beam_width)
     labels = K.eval(labels[0])
     return labels
