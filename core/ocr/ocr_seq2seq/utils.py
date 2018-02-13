@@ -12,7 +12,7 @@ Description:
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from keras import backend as K
-from skimage.filters import threshold_otsu
+from skimage.filters import threshold_otsu, threshold_yen
 
 
 def text_to_label(text, alphabet):
@@ -131,9 +131,10 @@ def convert_image_to_input_data(image, image_width, image_height):
     image = image.convert(mode="L")
     image_tmp = Image.new(mode="L", size=(image_width, image_height), color=255)
 
-    bbox = image.getbbox()
-    image = image.crop(bbox)
+    # bbox = image.getbbox()
+    # image = image.crop(bbox)
 
+    bbox = (0, 0, *image.size)
     if bbox:
         x, y, x2, y2 = bbox
         w, h = x2 - x, y2 - y
