@@ -13,9 +13,16 @@ import redis
 
 from ..config_reader import ConfigReader
 
+_redis = None
+
 
 def get_redis():
-    config_reader = ConfigReader()
-    redis_config = config_reader.get_config("redis")
-    assert redis_config, "redis config not exists."
-    return redis.StrictRedis(**redis_config)
+    global _redis
+
+    if not _redis:
+        config_reader = ConfigReader()
+        redis_config = config_reader.get_config("redis")
+        assert redis_config, "redis config not exists."
+        _redis = redis.StrictRedis(**redis_config)
+
+    return _redis

@@ -116,4 +116,4 @@ class List(RedisObject, UserList):
         self.redis.rpush(self._key, *data)
 
     def extend(self, other):
-        self.redis.rpush(self._key, *other )
+        self.redis.rpush(self._key, *other)
